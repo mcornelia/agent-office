@@ -19,3 +19,6 @@ __pycache__/
 *.log
 .codex/
 .agents/
+
+# Generated macOS application bundle
+/desktop/build/

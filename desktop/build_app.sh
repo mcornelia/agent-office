@@ -1,0 +1,33 @@
+#!/bin/zsh
+set -eu
+
+desktop_dir=${0:A:h}
+repo_root=${desktop_dir:h}
+build_dir="$desktop_dir/build"
+app="$build_dir/Agent Office.app"
+contents="$app/Contents"
+runtime="$contents/Resources/runtime"
+
+if [[ $(uname -s) != Darwin ]]; then
+  print -u2 "Agent Office.app must be built on macOS."
+  exit 1
+fi
+if ! command -v xcrun >/dev/null 2>&1; then
+  print -u2 "Xcode Command Line Tools are required (xcrun was not found)."
+  exit 1
+fi
+
+rm -rf -- "$app"
+mkdir -p "$contents/MacOS" "$runtime/desktop"
+xcrun clang -fobjc-arc -fmodules-cache-path="$build_dir/ModuleCache" -mmacosx-version-min=13.0 "$desktop_dir/AgentOfficeApp.m" \
+  -o "$contents/MacOS/Agent Office" \
+  -framework Cocoa -framework WebKit
+cp "$desktop_dir/Info.plist" "$contents/Info.plist"
+cp "$repo_root/server.py" "$repo_root/desktop_status.py" "$repo_root/communications.py" "$repo_root/index.html" "$runtime/"
+cp "$desktop_dir/agent_office_ctl.py" "$runtime/desktop/"
+/usr/bin/printf '%s\n' "$repo_root" > "$runtime/source-root.txt"
+chmod 755 "$contents/MacOS/Agent Office" "$runtime/server.py" "$runtime/desktop/agent_office_ctl.py"
+
+signing_identity=${AGENT_OFFICE_SIGNING_IDENTITY:--}
+codesign --force --sign "$signing_identity" --timestamp=none "$app"
+print "$app"

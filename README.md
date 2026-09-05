@@ -22,6 +22,8 @@ Open **http://127.0.0.1:4318/** in your browser. Pin up to six local tasks in Co
 
 On macOS, you can also double-click **Start Agent Office.command**. Stop the server with Control-C in its terminal.
 
+For a native menu-bar home with a private fullscreen presentation view, see [desktop/README.md](desktop/README.md). The desktop prototype detects and reuses a running server, prevents duplicate launcher starts, and keeps Start at Login opt-in and reversible.
+
 For a different local Codex directory or port:
 
 ```sh
@@ -93,6 +95,7 @@ python3 build_view.py
 
 # Run the activity, status, and message-reader checks.
 python3 -m unittest -v test_server.py test_desktop_status.py test_communications.py
+python3 -m unittest -v desktop/test_agent_office_ctl.py
 python3 -m unittest discover -s manager -p 'test_*.py' -v
 
 # Inspect your current six slots locally. Output contains private task IDs.

@@ -9,6 +9,11 @@
     body { margin:0; padding:20px; background:light-dark(#edece6,#17201a); color:light-dark(#263a32,#eef1e8); font-family:system-ui,sans-serif; }
     main { max-width:850px; margin:0 auto; }
     .connection-note { max-width:850px; margin:12px auto 0; font-size:13px; line-height:1.5; color:light-dark(#59695e,#bdcabc); }
+    html[data-presentation="true"] body { padding:0; min-height:100vh; display:grid; place-items:center; overflow:hidden; background:#101712; }
+    html[data-presentation="true"] main { width:min(100vw,1180px); max-width:none; }
+    html[data-presentation="true"] #agent-office .office-bottom,
+    html[data-presentation="true"] .connection-note { display:none; }
+    html[data-presentation="true"] #agent-office .office-window { border-radius:0; box-shadow:none; }
     @media(max-width:490px) { body { padding:8px; } }
     /* Hide example dispatch while the first live snapshot is loading. */
     #agent-office .task-input, #agent-office .send-task { display:none; }
@@ -424,11 +429,14 @@
   <script>
     (() => {
       const office=document.getElementById('agent-office');
+      const presentation=window.location.pathname==='/presentation';
+      document.documentElement.dataset.presentation=String(presentation);
+      if(presentation) document.title='Agent Office — presentation';
       office.agentOffice.applySnapshot({connected:false,slots:[]});
       let pollTimer;
       async function refresh() {
         try {
-          const response=await fetch('/api/state',{cache:'no-store',signal:AbortSignal.timeout(4000)});
+          const response=await fetch(presentation?'/api/state?presentation=1':'/api/state',{cache:'no-store',signal:AbortSignal.timeout(4000)});
           if(!response.ok) throw new Error('Activity source unavailable');
           office.agentOffice.applySnapshot(await response.json());
         } catch(_error) {

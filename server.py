@@ -12,11 +12,50 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
+from urllib.parse import parse_qs, urlsplit
 from desktop_status import DesktopStatus, WAIT_FLAGS
 from communications import CommunicationFeed
 
 ROOT = Path(__file__).resolve().parent
 MAX_TAIL = 8 * 1024 * 1024
+SERVICE_NAME = "agent-office"
+
+
+def presentation_snapshot(snapshot):
+    """Remove task identities and assignment details before serialization."""
+    if not snapshot.get("connected"):
+        return {
+            "connected": False,
+            "presentation": True,
+            "error": "Activity unavailable",
+            "slots": [],
+            "communications": [],
+        }
+    slots = []
+    for item in snapshot.get("slots", []):
+        occupied = item.get("id") is not None
+        key = item.get("key")
+        slots.append({
+            "key": key,
+            "id": f"presentation-slot-{key}" if occupied else None,
+            "title": f"Agent {key}" if occupied else "Unassigned",
+            "avatar": item.get("avatar"),
+            "state": item.get("state"),
+            "eventAt": item.get("eventAt"),
+            "approvalStateAvailable": bool(item.get("approvalStateAvailable")),
+        })
+    return {
+        "connected": True,
+        "presentation": True,
+        "source": "local activity",
+        "selectionAvailable": False,
+        "approvalStateAvailable": bool(snapshot.get("approvalStateAvailable")),
+        "observedAt": snapshot.get("observedAt"),
+        "slots": slots,
+        # Communication events contain stable task IDs, so presentation mode
+        # suppresses the event layer rather than attempting to pseudonymize it.
+        "communications": [],
+    }
 
 
 class EventTail:
@@ -126,7 +165,7 @@ class OfficeState:
         tail = self.tails.setdefault(key, EventTail(path))
         return tail.read()
 
-    def snapshot(self):
+    def snapshot(self, presentation=False):
         with self.lock:
             try:
                 app = self.app_state()
@@ -182,9 +221,10 @@ class OfficeState:
                 # Drop unused file readers; no transcript data is returned.
                 current_ids = {r["id"] for r in rows}
                 self.tails = {k: v for k, v in self.tails.items() if k[0] in current_ids}
-                return {"connected": True, "source": "local Codex task events and desktop status", "selectionAvailable": False, "approvalStateAvailable": any(s.get('approvalStateAvailable') for s in slots), "observedAt": datetime.now(timezone.utc).isoformat(), "slots": slots, "communications": self.communications.snapshot(rows)}
+                result = {"connected": True, "source": "local Codex task events and desktop status", "selectionAvailable": False, "approvalStateAvailable": any(s.get('approvalStateAvailable') for s in slots), "observedAt": datetime.now(timezone.utc).isoformat(), "slots": slots, "communications": self.communications.snapshot(rows)}
             except (OSError, ValueError, sqlite3.Error, RuntimeError) as exc:
-                return {"connected": False, "error": str(exc), "slots": []}
+                result = {"connected": False, "error": str(exc), "slots": []}
+            return presentation_snapshot(result) if presentation else result
 
 
 def make_handler(state, port):
@@ -196,13 +236,18 @@ def make_handler(state, port):
             if host not in allowed or (origin and origin not in {f"http://{h}" for h in allowed}):
                 self.send_error(403)
                 return
-            if self.path == "/api/state":
-                data = json.dumps(state.snapshot()).encode()
+            request = urlsplit(self.path)
+            query = parse_qs(request.query)
+            if request.path == "/api/state":
+                data = json.dumps(state.snapshot(presentation=query.get("presentation") == ["1"])).encode()
                 mime = "application/json"
-            elif self.path in ("/", "/index.html"):
+            elif request.path == "/api/health":
+                data = json.dumps({"status": "ok", "service": SERVICE_NAME, "presentationSupported": True}).encode()
+                mime = "application/json"
+            elif request.path in ("/", "/index.html", "/presentation"):
                 data = (ROOT / "index.html").read_bytes()
                 mime = "text/html; charset=utf-8"
-            elif self.path == "/favicon.ico":
+            elif request.path == "/favicon.ico":
                 self.send_response(204)
                 self.end_headers()
                 return
@@ -227,11 +272,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--codex-dir", type=Path, default=Path.home() / ".codex")
     parser.add_argument("--port", type=int, default=4318)
+    parser.add_argument("--identity-path", type=Path, help="Private writable task-to-character assignment file")
+    parser.add_argument("--roster-path", type=Path, help="Optional private manager roster used for generic activity bubbles")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--inspect-thread", help="Read one local task's lifecycle for validation, without changing its pins")
     args = parser.parse_args()
     desktop = DesktopStatus(args.codex_dir.expanduser().resolve())
-    state = OfficeState(args.codex_dir, None if args.check or args.inspect_thread else ROOT / "identities.json", desktop)
+    identity_path = args.identity_path.expanduser().resolve() if args.identity_path else ROOT / "identities.json"
+    roster_path = args.roster_path.expanduser().resolve() if args.roster_path else None
+    state = OfficeState(args.codex_dir, None if args.check or args.inspect_thread else identity_path, desktop, roster_path)
     if args.inspect_thread:
         con = state.connect()
         try:

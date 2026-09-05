@@ -1,11 +1,12 @@
 import json
+import io
 import os
 import sqlite3
 import tempfile
 import time
 import unittest
 from pathlib import Path
-from server import EventTail, OfficeState
+from server import EventTail, OfficeState, make_handler, presentation_snapshot
 
 
 def event(kind):
@@ -102,6 +103,75 @@ class OfficeTests(unittest.TestCase):
         with path.open('ab') as f:
             f.write(json.dumps({'type':'response_item','payload':{'text':'PRIVATE TEST TRANSCRIPT'}}).encode()+b'\n')
         self.assertNotIn('PRIVATE TEST TRANSCRIPT',json.dumps(OfficeState(self.root).snapshot()))
+
+    def test_presentation_snapshot_never_returns_private_assignments(self):
+        private = {
+            'connected': True,
+            'source': 'private source description',
+            'approvalStateAvailable': True,
+            'observedAt': '2026-09-05T21:30:00+00:00',
+            'slots': [
+                {'key': 1, 'id': 'private-thread-id', 'title': 'Secret assignment',
+                 'avatar': 4, 'state': 'working', 'eventAt': None,
+                 'approvalStateAvailable': True},
+                {'key': 2, 'id': None, 'title': 'No pinned task', 'avatar': 2,
+                 'state': 'unassigned', 'eventAt': None,
+                 'approvalStateAvailable': False},
+            ],
+            'communications': [{'from': 'private-thread-id', 'to': 'other-private-id'}],
+        }
+        public = presentation_snapshot(private)
+        encoded = json.dumps(public)
+        self.assertTrue(public['presentation'])
+        self.assertEqual(public['slots'][0]['title'], 'Agent 1')
+        self.assertEqual(public['slots'][0]['id'], 'presentation-slot-1')
+        self.assertIsNone(public['slots'][1]['id'])
+        self.assertEqual(public['communications'], [])
+        for secret in ('private-thread-id', 'other-private-id', 'Secret assignment', 'private source description'):
+            self.assertNotIn(secret, encoded)
+
+    def test_presentation_error_does_not_return_local_details(self):
+        public = presentation_snapshot({'connected': False, 'error': '/Users/private/.codex missing', 'slots': []})
+        self.assertEqual(public['error'], 'Activity unavailable')
+        self.assertNotIn('/Users/private', json.dumps(public))
+
+    def test_presentation_query_reaches_redacted_snapshot(self):
+        class State:
+            presentation = None
+            def snapshot(self, presentation=False):
+                self.presentation = presentation
+                return {'connected': False, 'presentation': presentation, 'slots': []}
+        state = State()
+        handler_type = make_handler(state, 4318)
+        handler = handler_type.__new__(handler_type)
+        handler.headers = {'Host': '127.0.0.1:4318'}
+        handler.path = '/api/state?presentation=1'
+        handler.wfile = io.BytesIO()
+        handler.send_response = lambda _code: None
+        handler.send_header = lambda _name, _value: None
+        handler.end_headers = lambda: None
+        handler.send_error = lambda code: self.fail(f'unexpected HTTP error {code}')
+        handler.do_GET()
+        self.assertTrue(state.presentation)
+        self.assertTrue(json.loads(handler.wfile.getvalue())['presentation'])
+
+    def test_health_endpoint_contains_no_task_state(self):
+        class State:
+            def snapshot(self, presentation=False):
+                self.fail('health must not read task state')
+        handler_type = make_handler(State(), 4318)
+        handler = handler_type.__new__(handler_type)
+        handler.headers = {'Host': 'localhost:4318'}
+        handler.path = '/api/health'
+        handler.wfile = io.BytesIO()
+        handler.send_response = lambda _code: None
+        handler.send_header = lambda _name, _value: None
+        handler.end_headers = lambda: None
+        handler.send_error = lambda code: self.fail(f'unexpected HTTP error {code}')
+        handler.do_GET()
+        health = json.loads(handler.wfile.getvalue())
+        self.assertEqual(health['service'], 'agent-office')
+        self.assertNotIn('slots', health)
 
     def test_waiting_overrides_working_and_clears_on_response(self):
         self.add_task('one',100)
