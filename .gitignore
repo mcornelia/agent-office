@@ -1,0 +1,21 @@
+# Machine-specific task identities and manager history
+/identities.json
+/identities.tmp
+/manager/team.json
+/manager/state.json
+/manager/SCOUT-MANAGER.md
+/manager/MANAGER-BRIEF.md
+/manager/*.tmp
+
+# Local runtime and credentials
+__pycache__/
+*.py[cod]
+.DS_Store
+.venv/
+.env
+.env.*
+*.sqlite*
+*.jsonl
+*.log
+.codex/
+.agents/

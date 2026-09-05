@@ -1,0 +1,309 @@
+<div id="agent-office" aria-label="Agent Office">
+  <style>
+    #agent-office { --office-bg:light-dark(#f6f3ea,#202923); --office-wall:light-dark(#e6e8db,#303c32); --office-floor:light-dark(#eee5d2,#394239); --office-line:light-dark(#d7cbb4,#4b5548); --office-ink:light-dark(#263a32,#eef1e8); --office-muted:light-dark(#59695e,#bdcabc); --office-desk:light-dark(#c7a87e,#957657); --office-edge:light-dark(#987954,#6c513b); --office-panel:light-dark(#fffdf7,#253329); --office-screen:light-dark(#243c38,#14221c); --office-blue:light-dark(#2379e7,#53a0ff); --office-green:light-dark(#23815a,#6bdaa2); --office-shadow:light-dark(#564b2b22,#00000035); color:var(--office-ink); font-family:ui-sans-serif,system-ui,sans-serif; font-size:14px; line-height:1.45; }
+    #agent-office * { box-sizing:border-box; }
+    #agent-office [data-state] { --activity-fill:var(--office-screen); --activity-ink:light-dark(#c7d6cd,#b7c9bf); --activity-glow:transparent; }
+    #agent-office [data-state="idle"] { --activity-fill:light-dark(#f5f8fc,#e9eff8); --activity-ink:light-dark(#304153,#34465c); }
+    #agent-office [data-state="working"] { --activity-fill:var(--office-blue); --activity-ink:light-dark(#fff,#0e2540); --activity-glow:light-dark(#2379e755,#53a0ff55); }
+    #agent-office [data-state="done"] { --activity-fill:var(--office-green); --activity-ink:light-dark(#fff,#123923); --activity-glow:light-dark(#23815a55,#6bdaa255); }
+    #agent-office [data-state="waiting"] { --activity-fill:light-dark(#e6ad40,#edb450); --activity-ink:light-dark(#49320a,#49320a); --activity-glow:light-dark(#e6ad4055,#edb45055); }
+    #agent-office [data-state="error"] { --activity-fill:light-dark(#cf4245,#ff827c); --activity-ink:light-dark(#fff,#4a1717); --activity-glow:light-dark(#cf424555,#ff827c55); }
+    #agent-office .office-window { background:var(--office-bg); border:1px solid var(--office-line); border-radius:18px; overflow:hidden; }
+    #agent-office .office-header { padding:17px 22px; display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    #agent-office .office-brand { font-weight:500; letter-spacing:.03em; }
+    #agent-office .office-tag { font-size:12px; color:var(--office-muted); }
+    #agent-office .office-room { position:relative; background:var(--office-floor); padding:0 18px 15px; border-top:1px solid var(--office-line); border-bottom:1px solid var(--office-line); }
+    #agent-office .back-wall { height:78px; margin:0 -18px 6px; background:var(--office-wall); border-bottom:7px solid var(--office-line); display:flex; align-items:center; justify-content:space-around; padding:9px 20px; }
+    #agent-office .window-view { position:relative; width:26%; height:46px; border:5px solid var(--office-panel); background:linear-gradient(160deg,light-dark(#c9dee0,#466572) 0 67%,light-dark(#95ac8e,#344b37) 68%); box-shadow:2px 3px 0 var(--office-shadow); }
+    #agent-office .window-view:after { content:""; position:absolute; left:48%; width:4px; height:100%; background:var(--office-panel); }
+    #agent-office .wall-sign { text-align:center; color:var(--office-muted); letter-spacing:.18em; font-size:11px; padding:0 10px; }
+    #agent-office .office-desks { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); column-gap:10px; row-gap:12px; }
+    #agent-office .station { position:relative; min-height:222px; min-width:0; border:0; padding:0 0 6px; background:transparent; color:inherit; font:inherit; cursor:pointer; border-radius:10px; display:flex; flex-direction:column; }
+    #agent-office .station[aria-pressed="true"] { background:light-dark(#ffffff42,#ffffff08); }
+    #agent-office .station-label { position:relative; margin-top:145px; width:100%; padding:0 4px; text-align:center; font-size:12px; white-space:normal; display:flex; flex-direction:column; align-items:center; gap:6px; }
+    #agent-office .desk-plaque { position:relative; display:block; width:100%; max-width:166px; min-height:51px; padding:6px 7px; border:1px solid light-dark(#9c7f45,#b69b62); border-bottom:4px solid light-dark(#9c7f45,#8c7545); border-radius:3px; background:linear-gradient(125deg,light-dark(#f0dea9,#76663c),light-dark(#dfbf79,#51472e)); color:light-dark(#493718,#fff1c8); box-shadow:0 3px 2px var(--office-shadow); }
+    #agent-office .plaque-name { display:block; font-weight:500; overflow-wrap:anywhere; }
+    #agent-office .plaque-role { display:block; margin-top:2px; font-size:11px; overflow-wrap:anywhere; }
+    #agent-office .plaque-role[hidden] { display:none; }
+    #agent-office .station-state { display:block; color:var(--office-muted); font-size:11px; }
+    #agent-office .worktable { position:absolute; top:59px; left:50%; transform:translateX(-50%); width:124px; height:42px; background:var(--office-desk); border-radius:5px; border-bottom:8px solid var(--office-edge); box-shadow:0 9px 0 -3px var(--office-shadow); }
+    #agent-office .worktable:before, #agent-office .worktable:after { content:""; position:absolute; width:8px; height:22px; background:var(--office-edge); top:33px; }
+    #agent-office .worktable:before { left:9px; } #agent-office .worktable:after { right:9px; }
+    #agent-office .monitor { position:absolute; width:52px; height:37px; left:50%; top:22px; transform:translateX(-50%); border:5px solid var(--office-screen); border-radius:5px; background:var(--activity-fill); box-shadow:0 0 17px var(--activity-glow); }
+    #agent-office .monitor:after { content:""; position:absolute; width:6px; height:9px; background:var(--office-screen); left:18px; top:31px; }
+    #agent-office .screen-lines { position:absolute; left:5px; top:6px; width:19px; height:3px; color:var(--activity-ink); background:currentColor; box-shadow:0 6px 0 currentColor,7px 12px 0 currentColor; }
+    #agent-office .station:is([data-state="unknown"],[data-state="unassigned"]) .screen-lines { opacity:0; }
+    #agent-office .mug { position:absolute; top:66px; left:calc(50% + 37px); width:10px; height:10px; border-radius:1px 1px 4px 4px; background:var(--suit); }
+    #agent-office .mug:after { content:""; position:absolute; right:-4px; top:1px; width:5px; height:6px; border:2px solid var(--suit); border-radius:2px; }
+    #agent-office .robot { position:absolute; top:90px; left:calc(50% - 40px); width:38px; height:48px; transition:transform .75s cubic-bezier(.22,.8,.3,1); filter:drop-shadow(0 4px 1px var(--office-shadow)); }
+    #agent-office .robot-head { position:absolute; width:34px; height:25px; top:0; left:2px; border-radius:9px; background:var(--suit); border-bottom:3px solid var(--trim); z-index:3; }
+    #agent-office .robot-head:before { content:""; position:absolute; width:3px; height:9px; left:15px; top:-8px; background:var(--trim); }
+    #agent-office .robot-head:after { content:""; position:absolute; width:7px; height:7px; left:13px; top:-11px; border-radius:50%; background:var(--suit); }
+    #agent-office .visor { position:absolute; top:7px; left:5px; width:24px; height:11px; border-radius:4px; background:var(--office-screen); display:flex; gap:7px; align-items:center; justify-content:center; }
+    #agent-office .visor:before, #agent-office .visor:after { content:""; display:block; width:3px; height:4px; background:light-dark(#e7fcf5,#ecfff4); border-radius:2px; }
+    #agent-office .robot-body { position:absolute; width:24px; height:17px; top:23px; left:7px; border-radius:5px; background:var(--suit); border-bottom:3px solid var(--trim); }
+    #agent-office .robot-body:before, #agent-office .robot-body:after { content:""; position:absolute; top:3px; width:7px; height:14px; border-radius:3px; background:var(--suit); }
+    #agent-office .robot-body:before { left:-7px; transform:rotate(15deg); } #agent-office .robot-body:after { right:-7px; transform:rotate(-15deg); }
+    #agent-office .feet { position:absolute; top:38px; left:9px; width:8px; height:8px; border-radius:0 0 3px 3px; background:var(--trim); box-shadow:13px 0 0 var(--trim); }
+    #agent-office .robot-badge { position:absolute; width:6px; height:4px; background:var(--office-panel); left:9px; top:5px; border-radius:1px; }
+    #agent-office .robot-2 .robot-head { border-radius:3px; width:38px; left:0; }
+    #agent-office .robot-2 .visor { width:28px; }
+    #agent-office .robot-2 .robot-head:before { left:5px; transform:rotate(-25deg); }
+    #agent-office .robot-2 .robot-head:after { left:2px; border-radius:1px; }
+    #agent-office .robot-3 .robot-head { border-radius:15px 15px 8px 8px; }
+    #agent-office .robot-3 .visor { border-radius:50%; width:14px; left:10px; gap:0; }
+    #agent-office .robot-3 .visor:after { display:none; }
+    #agent-office .robot-3 .robot-head:before { left:-4px; top:6px; width:5px; height:12px; }
+    #agent-office .robot-3 .robot-head:after { left:33px; top:6px; width:5px; height:12px; border-radius:2px; }
+    #agent-office .robot-4 .robot-head { border-radius:13px; height:28px; top:-3px; }
+    #agent-office .robot-4 .robot-head:before { left:2px; transform:rotate(-28deg); height:12px; }
+    #agent-office .robot-4 .robot-head:after { left:26px; top:-8px; width:3px; height:12px; border-radius:0; transform:rotate(28deg); }
+    #agent-office .robot-5 .robot-head { border-radius:6px 6px 11px 11px; }
+    #agent-office .robot-5 .robot-head:before { width:28px; height:7px; top:-5px; left:3px; border-radius:4px 4px 0 0; }
+    #agent-office .robot-5 .robot-head:after { width:40px; height:4px; top:0; left:-3px; border-radius:2px; }
+    #agent-office .robot-6 .robot-head { width:30px; left:4px; border-radius:4px 12px 4px 12px; }
+    #agent-office .robot-6 .visor { left:3px; }
+    #agent-office .robot-6 .robot-head:after { width:15px; left:13px; border-radius:3px; transform:rotate(15deg); }
+    #agent-office .station[aria-pressed="true"] .robot { transform:translate(20px,3px); }
+    #agent-office .station[data-state="working"] .robot { transform:translate(45px,-42px); }
+    #agent-office .station[data-state="working"] .station-state { color:var(--office-blue); }
+    #agent-office .station[data-state="done"] .robot { transform:translate(20px,-2px); }
+    #agent-office .station[data-state="done"] .robot-body:after { transform:translateY(-12px) rotate(-135deg); }
+    #agent-office .station[data-state="done"] .station-state { color:var(--office-green); }
+    #agent-office .result-sheet { opacity:0; position:absolute; top:89px; left:calc(50% + 17px); width:17px; height:21px; background:var(--office-panel); border-top:5px solid var(--office-green); transform:rotate(10deg); transition:opacity .2s; }
+    #agent-office .station[data-state="done"] .result-sheet { opacity:1; }
+    #agent-office .office-bottom { padding:18px 22px 20px; display:grid; grid-template-columns:224px minmax(0,1fr); gap:23px; align-items:center; }
+    #agent-office .keypad { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-areas:'. key1 key2 .' 'key3 key4 key5 key6'; gap:7px; background:light-dark(#d8d8d0,#17221b); padding:9px; border-radius:13px; box-shadow:inset 0 -3px 0 var(--office-shadow); }
+    #agent-office .agent-key:nth-child(1) { grid-area:key1; }
+    #agent-office .agent-key:nth-child(2) { grid-area:key2; }
+    #agent-office .agent-key:nth-child(3) { grid-area:key3; }
+    #agent-office .agent-key:nth-child(4) { grid-area:key4; }
+    #agent-office .agent-key:nth-child(5) { grid-area:key5; }
+    #agent-office .agent-key:nth-child(6) { grid-area:key6; }
+    #agent-office .agent-key { position:relative; min-height:49px; border:1px solid var(--office-line); border-bottom-width:4px; border-radius:7px; background:var(--activity-fill); color:var(--activity-ink); box-shadow:0 0 12px var(--activity-glow); font:inherit; font-weight:500; cursor:pointer; }
+    #agent-office .agent-key[aria-pressed="true"] { outline:2px solid var(--office-ink); outline-offset:2px; }
+    #agent-office .agent-key:is([data-state="working"],[data-state="done"],[data-state="waiting"],[data-state="error"]) { border-color:var(--activity-fill); }
+    #agent-office .compose { min-width:0; }
+    #agent-office .compose-title { font-weight:500; display:block; margin-bottom:7px; }
+    #agent-office .task-input { width:100%; min-width:0; background:var(--office-panel); border:1px solid var(--office-line); color:var(--office-ink); font:inherit; padding:9px 11px; border-radius:8px; }
+    #agent-office .compose-actions { display:flex; align-items:center; gap:12px; margin-top:9px; flex-wrap:wrap; }
+    #agent-office .send-task { background:var(--office-ink); color:var(--office-bg); font:inherit; font-weight:500; border:0; padding:9px 13px; border-radius:8px; cursor:pointer; }
+    #agent-office .send-task:disabled { opacity:.5; cursor:default; }
+    #agent-office .selection-detail { color:var(--office-muted); font-size:12px; }
+    #agent-office .office-legend { padding:0 22px 17px; display:flex; flex-wrap:wrap; gap:15px; color:var(--office-muted); font-size:11px; }
+    #agent-office .legend-item { display:flex; align-items:center; gap:6px; }
+    #agent-office .legend-dot { width:7px; height:7px; border-radius:50%; background:var(--office-blue); }
+    #agent-office .legend-item:nth-child(2) .legend-dot { background:var(--office-green); }
+    #agent-office .legend-item:nth-child(3) .legend-dot { background:light-dark(#bc7b16,#edb450); }
+    #agent-office [data-cozy="false"] .back-wall { display:none; }
+    #agent-office [data-cozy="false"] .office-room { padding-top:14px; }
+    @media(max-width:490px) { #agent-office .office-header { padding:14px; gap:5px; } #agent-office .office-room { padding-left:6px; padding-right:6px; } #agent-office .back-wall { margin-left:-6px; margin-right:-6px; } #agent-office .office-desks { column-gap:0; } #agent-office .worktable { width:88px; } #agent-office .mug { left:calc(50% + 29px); } #agent-office .station[data-state="working"] .robot { transform:translate(41px,-39px); } #agent-office .office-bottom { grid-template-columns:1fr; padding:16px; gap:16px; } #agent-office .agent-key { min-height:44px; } #agent-office .task-input { font-size:16px; } #agent-office .office-legend { padding-left:16px; padding-right:16px; gap:10px; } }
+    #agent-office .shared-space { grid-column:1/-1; height:164px; position:relative; margin:0 7px; border-radius:8px; background:light-dark(#d8ddca,#414d3b); }
+    #agent-office .whiteboard { position:absolute; top:7px; left:10px; width:31%; height:43px; background:var(--office-panel); border:4px solid var(--office-edge); border-radius:3px; text-align:center; color:var(--office-muted); font-size:11px; padding:7px 2px; }
+    #agent-office .reference-shelf { position:absolute; top:7px; right:10px; width:31%; height:43px; background:var(--office-desk); border-bottom:6px solid var(--office-edge); text-align:center; font-size:11px; padding:7px 2px; }
+    #agent-office .shared-label { position:absolute; top:12px; left:35%; right:35%; text-align:center; color:var(--office-muted); font-size:11px; }
+    #agent-office .office-room > .robot { left:0; top:0; z-index:10; pointer-events:none; transition:transform var(--walk-duration,0ms) linear; }
+    #agent-office .traveler-number { position:absolute; top:50px; left:8px; width:23px; height:19px; border-radius:6px; text-align:center; font-size:11px; background:var(--activity-fill); color:var(--activity-ink); border:1px solid var(--office-line); }
+    #agent-office .robot[data-selected="true"] .traveler-number { outline:2px solid var(--office-ink); outline-offset:1px; }
+    #agent-office .robot:is([data-state="working"],[data-state="done"],[data-state="waiting"],[data-state="error"]) .traveler-number { border-color:var(--activity-fill); }
+    #agent-office .robot[data-walking="true"] .feet { animation:office-footsteps .25s steps(2,end) infinite; }
+    #agent-office .robot[data-walking="true"] .robot-head { animation:office-bob .3s ease-in-out infinite alternate; }
+    #agent-office .robot[data-state="done"] .robot-body:after { transform:translateY(-12px) rotate(-135deg); }
+    @keyframes office-footsteps { 0% { transform:translateY(0) rotate(-9deg); } 100% { transform:translateY(-3px) rotate(9deg); } }
+    @keyframes office-bob { from { transform:translateY(0); } to { transform:translateY(-2px); } }
+    @media(max-width:490px) { #agent-office .shared-space { margin-left:0; margin-right:0; } #agent-office .whiteboard { left:5px; width:34%; } #agent-office .reference-shelf { right:5px; width:34%; } #agent-office .shared-label { display:none; } }
+    @media(prefers-reduced-motion:reduce) { #agent-office *,#agent-office *:before,#agent-office *:after { transition:none!important; animation:none!important; } }
+  </style>
+  <div class="office-window" data-cozy="true">
+    <div class="office-header"><span class="office-brand">THE AGENT OFFICE</span><span class="office-tag">Preview · example activity</span></div>
+    <div class="office-room">
+      <div class="back-wall" aria-hidden="true"><div class="window-view"></div><div class="wall-sign">SIX DESKS<br>ONE TEAM</div><div class="window-view"></div></div>
+      <div class="office-desks" aria-label="Agent desks"></div>
+    </div>
+    <div class="office-bottom">
+      <div class="keypad" role="group" aria-label="Six agent keys"></div>
+      <form class="compose">
+        <label class="compose-title" for="agent-office-task">1 · Scout (Mr Manager)</label>
+        <input id="agent-office-task" class="task-input" type="text" maxlength="160" value="Draft a project introduction" aria-label="Example task for selected agent">
+        <div class="compose-actions"><button class="send-task" type="submit">Send to work</button><span class="selection-detail" aria-live="polite">Ready for a task</span></div>
+      </form>
+    </div>
+    <div class="office-legend" aria-label="Activity colors"><span class="legend-item"><span class="legend-dot"></span>Working</span><span class="legend-item"><span class="legend-dot"></span>Complete, unread</span><span class="legend-item"><span class="legend-dot"></span>Needs your input</span></div>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('agent-office');
+      const deskArea = root.querySelector('.office-desks');
+      const keyArea = root.querySelector('.keypad');
+      const input = root.querySelector('.task-input');
+      const label = root.querySelector('.compose-title');
+      const send = root.querySelector('.send-task');
+      const detail = root.querySelector('.selection-detail');
+      const room = root.querySelector('.office-room');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const shared = document.createElement('div');
+      shared.className='shared-space';
+      shared.innerHTML='<span class="whiteboard">Whiteboard</span><span class="shared-label">TEAM<br>SPACE</span><span class="reference-shelf">References</span>';
+      const colors = [
+        ['#dfa650','#f0b958','#a97430','#c18e3f'], ['#79afa2','#88c7b6','#4c8576','#58a28e'],
+        ['#d7816d','#f09b83','#a35b4b','#c07761'], ['#a095c6','#b7ace3','#746691','#8e81bd'],
+        ['#7b9fae','#a1c5d6','#547a89','#7097a8'], ['#c18ca7','#e6a8c7','#925e7b','#b77e9e']
+      ];
+      const roster = ['Scout (Mr Manager)','Bolt (Product SWE)','Pixel (AI Art Curator)','Echo (Comms)','Atlas (Travel Agent)','Nova (Pick up player)'];
+      function splitPinnedName(title) {
+        const full=String(title || '').trim();
+        const match=full.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+        return match && match[1].trim()?{name:match[1].trim(),role:match[2].trim()}:{name:full || 'Unassigned',role:''};
+      }
+      const tasks = ['Draft a project introduction','Build a simple landing page','Design a playful app icon','Review the latest changes','Research the next project','Write a quick-start guide'];
+      const agents = roster.map((displayTitle,i)=>({ ...splitPinnedName(displayTitle), displayTitle, index:i, keyNumber:i+1, task:tasks[i], state:'idle', stage:'Ready for a task', position:null, location:'home', moving:false, runId:0, threadId:null }));
+      let selected = 0;
+      let liveMode = false;
+      const appearance = { cozy:true, pace:'Relaxed' };
+      agents.forEach((a,i) => {
+        const station = document.createElement('button');
+        station.type='button'; station.className='station';
+        station.style.setProperty('--suit',`light-dark(${colors[i][0]},${colors[i][1]})`);
+        station.style.setProperty('--trim',`light-dark(${colors[i][2]},${colors[i][3]})`);
+        station.innerHTML=`<span class="worktable" aria-hidden="true"></span><span class="monitor" aria-hidden="true"><span class="screen-lines"></span></span><span class="mug" aria-hidden="true"></span><span class="robot robot-${i+1}" aria-hidden="true"><span class="robot-head"><span class="visor"></span></span><span class="robot-body"><span class="robot-badge"></span></span><span class="feet"></span></span><span class="result-sheet" aria-hidden="true"></span><span class="station-label"><span class="desk-plaque"><span class="plaque-name"></span><span class="plaque-role"></span></span><span class="station-state"></span></span>`;
+        station.addEventListener('click',()=>select(i)); deskArea.append(station); a.station=station;
+        a.robot=station.querySelector('.robot');
+        a.robot.style.setProperty('--suit',`light-dark(${colors[i][0]},${colors[i][1]})`);
+        a.robot.style.setProperty('--trim',`light-dark(${colors[i][2]},${colors[i][3]})`);
+        const number=document.createElement('span'); number.className='traveler-number'; number.textContent=String(i+1); a.robot.append(number);
+        room.append(a.robot);
+        if(i===2) deskArea.append(shared);
+        const key = document.createElement('button'); key.type='button'; key.className='agent-key'; key.textContent=String(i+1);
+        key.addEventListener('click',()=>select(i)); keyArea.append(key); a.key=key;
+      });
+      function render() {
+        agents.forEach((a,i) => {
+          const stateLabel = {working:'Working',done:'Complete · unread',idle:'Idle',waiting:'Needs your input',unknown:'Status unavailable',error:'Error',unassigned:'No pinned task'}[a.state] || 'Status unavailable';
+          for (const el of [a.station,a.key]) {
+            el.dataset.state=a.state; el.setAttribute('aria-pressed',String(i===selected));
+            el.setAttribute('aria-label',`${a.keyNumber} · ${a.displayTitle}, ${stateLabel}${i===selected?', selected in office':''}`);
+          }
+          a.station.querySelector('.plaque-name').textContent=`${a.keyNumber} · ${a.name}`;
+          const role=a.station.querySelector('.plaque-role');
+          role.textContent=a.role; role.hidden=!a.role;
+          a.station.querySelector('.station-state').textContent=stateLabel;
+          a.robot.dataset.state=a.state;
+          a.robot.dataset.selected=String(i===selected);
+        });
+        const a=agents[selected]; label.textContent=`${liveMode?'Viewing ':''}${a.keyNumber} · ${a.displayTitle}`;
+        send.disabled=a.state==='working' || !input.value.trim();
+        send.textContent=a.state==='working'?'Working…':'Send to work';
+        input.disabled=a.state==='working'; detail.textContent=liveMode?'Control the pinned task with your keyboard in Codex.':a.stage;
+        root.querySelector('.office-window').dataset.cozy=String(appearance.cozy);
+      }
+      function spot(a,location) {
+        const r=room.getBoundingClientRect();
+        const d=a.station.getBoundingClientRect();
+        const s=shared.getBoundingClientRect();
+        const homeX=d.left-r.left+d.width/2-19;
+        const homeY=d.top-r.top+72;
+        const laneY=s.top-r.top+47+(a.index>=3?43:0);
+        if(location==='home') return {x:homeX,y:homeY};
+        if(location==='corridor') return {x:homeX,y:laneY};
+        if(location==='board') return {x:s.left-r.left+8+(a.index%3)*38,y:laneY};
+        if(location==='shelf') return {x:s.right-r.left-126+(a.index%3)*38,y:laneY};
+        return {x:homeX,y:homeY};
+      }
+      function position(a,p,duration=0) {
+        a.position=p;
+        a.robot.style.setProperty('--walk-duration',`${duration}ms`);
+        a.robot.style.transform=`translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;
+      }
+      const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+      async function walk(a,location,pace) {
+        const runId=a.runId;
+        a.location=location; const target=spot(a,location); const from=a.position||target;
+        const distance=Math.hypot(target.x-from.x,target.y-from.y);
+        const duration=reducedMotion.matches?0:Math.max(300,Math.min(1900,distance*9))*pace;
+        a.moving=true; a.robot.dataset.walking='true'; position(a,target,duration);
+        await pause(duration+30);
+        if(!root.isConnected || a.runId!==runId) return;
+        a.moving=false; a.robot.dataset.walking='false';
+      }
+      function reflow() {
+        agents.forEach(a=>{if(!a.moving) position(a,spot(a,a.location));});
+      }
+      async function work(a) {
+        const runId=a.runId;
+        const valid=()=>root.isConnected && a.state==='working' && a.runId===runId;
+        const pace=appearance.pace==='Quick'?0.65:1;
+        const route=[
+          ['corridor','Heading to the whiteboard…',0],
+          ['board','Thinking at the whiteboard…',1600],
+          ['shelf','Looking through references…',1500],
+          ['corridor','Back to the desk…',0],
+          ['home',liveMode?'Working in Codex…':'Finishing the example task…',2200]
+        ];
+        do {
+          for(const [location,stage,rest] of route) {
+            if(!valid()) return;
+            a.stage=stage; render(); await walk(a,location,pace);
+            if(!valid()) return;
+            if(rest) await pause(rest*pace);
+          }
+        } while(liveMode && valid());
+        if(!valid()) return;
+        a.state='done'; a.stage='Complete · example result ready'; render();
+      }
+      function select(i) {
+        if(!liveMode) agents[selected].task=input.value;
+        selected=i;
+        const a=agents[i];
+        if (!liveMode && a.state==='done') { a.state='idle'; a.stage='Result reviewed · ready'; }
+        input.value=a.task; render();
+      }
+      input.addEventListener('input',()=>{ agents[selected].task=input.value; send.disabled=!input.value.trim(); });
+      root.querySelector('form').addEventListener('submit',event=>{
+        event.preventDefault(); const a=agents[selected];
+        if(liveMode) return;
+        if (a.state==='working' || !input.value.trim()) return;
+        a.task=input.value.trim(); a.state='working'; a.runId++; work(a);
+      });
+      root.addEventListener('keydown',event=>{
+        if (event.target.closest('input,textarea') || event.metaKey || event.ctrlKey || event.altKey) return;
+        if (/^[1-6]$/.test(event.key)) { event.preventDefault(); select(agents.findIndex(a=>a.keyNumber===Number(event.key))); }
+      });
+      root.agentOffice={
+        applySnapshot(snapshot) {
+          liveMode=true;
+          input.hidden=true; send.hidden=true;
+          const tag=root.querySelector('.office-tag');
+          const items=snapshot.connected && Array.isArray(snapshot.slots)?snapshot.slots:null;
+          tag.textContent=items?'Live · local task activity':'Disconnected · activity unavailable';
+          if(!items) {
+            agents.forEach(a=>{a.runId++;a.state=a.threadId?'unknown':'unassigned';a.moving=false;a.location='home';a.robot.hidden=!a.threadId;a.robot.dataset.walking='false';position(a,spot(a,'home'));});
+            render(); return;
+          }
+          for(const item of items) {
+            const a=agents[item.avatar];
+            if(!a || !Number.isInteger(item.key) || item.key<1 || item.key>6) continue;
+            const previous=a.state; const changed=a.threadId!==item.id;
+            if(changed || previous!==item.state) a.runId++;
+            a.threadId=item.id; a.keyNumber=item.key; a.task=item.title; a.state=item.state;
+            a.displayTitle=item.id?String(item.title):'Unassigned';
+            Object.assign(a,splitPinnedName(a.displayTitle));
+            a.key.textContent=String(item.key); keyArea.append(a.key);
+            a.robot.querySelector('.traveler-number').textContent=String(item.key);
+            a.robot.hidden=!item.id;
+            if(a.state==='working' && (changed || previous!=='working')) work(a);
+            else if(a.state!=='working') {a.moving=false;a.location='home';a.robot.dataset.walking='false';position(a,spot(a,'home'),250);}
+          }
+          render();
+        }
+      };
+      render();
+      reflow();
+      const observer=new ResizeObserver(reflow); observer.observe(room);
+      if (globalThis.Tweak) {
+        const tweak=new Tweak({container:root,onChange:()=>{render(); reflow();}});
+        tweak.addToggle(appearance,'cozy',{label:'Windows and wall detail'});
+        tweak.addSelect(appearance,'pace',{label:'Walking pace',options:['Relaxed','Quick']});
+      }
+    })();
+  </script>
+</div>

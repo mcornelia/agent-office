@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Agent Office — local task activity</title>
+  <style>
+    body { margin:0; padding:20px; background:light-dark(#edece6,#17201a); color:light-dark(#263a32,#eef1e8); font-family:system-ui,sans-serif; }
+    main { max-width:850px; margin:0 auto; }
+    .connection-note { max-width:850px; margin:12px auto 0; font-size:13px; line-height:1.5; color:light-dark(#59695e,#bdcabc); }
+    @media(max-width:490px) { body { padding:8px; } }
+    /* Hide example dispatch while the first live snapshot is loading. */
+    #agent-office .task-input, #agent-office .send-task { display:none; }
+  </style>
+</head>
+<body>
+  <main><!--AGENT_OFFICE--></main>
+  <p class="connection-note">Live task activity from this Mac. Use the Creator Micro’s pinned-task controls in Codex. Office selection is independent; amber means the task needs your input or approval.</p>
+  <script>
+    (() => {
+      const office=document.getElementById('agent-office');
+      office.agentOffice.applySnapshot({connected:false,slots:[]});
+      let pollTimer;
+      async function refresh() {
+        try {
+          const response=await fetch('/api/state',{cache:'no-store',signal:AbortSignal.timeout(4000)});
+          if(!response.ok) throw new Error('Activity source unavailable');
+          office.agentOffice.applySnapshot(await response.json());
+        } catch(_error) {
+          office.agentOffice.applySnapshot({connected:false,slots:[]});
+        }
+        pollTimer=setTimeout(refresh,1000);
+      }
+      refresh();
+      window.addEventListener('pagehide',()=>clearTimeout(pollTimer),{once:true});
+    })();
+  </script>
+</body>
+</html>
