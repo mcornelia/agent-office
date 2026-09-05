@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+ <key>Label</key><string>com.mcornelia.agent-office</string>
+ <key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>REPOSITORY_PATH/server.py</string><string>--port</string><string>4319</string><string>--public-host</string><string>glyph.local:4318</string></array>
+ <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+ <key>StandardOutPath</key><string>LOG_PATH/agent-office.out.log</string><key>StandardErrorPath</key><string>LOG_PATH/agent-office.err.log</string>
+</dict></plist>

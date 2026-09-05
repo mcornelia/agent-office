@@ -227,11 +227,13 @@ class OfficeState:
             return presentation_snapshot(result) if presentation else result
 
 
-def make_handler(state, port):
+def make_handler(state, port, public_hosts=()):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             host = self.headers.get("Host", "")
-            allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
+            # Caddy terminates LAN TLS and proxies on loopback.  Permit only its
+            # explicit public host header; never turn this into a wildcard.
+            allowed = {f"127.0.0.1:{port}", f"localhost:{port}", *public_hosts}
             origin = self.headers.get("Origin")
             if host not in allowed or (origin and origin not in {f"http://{h}" for h in allowed}):
                 self.send_error(403)
@@ -275,6 +277,8 @@ def main():
     parser.add_argument("--identity-path", type=Path, help="Private writable task-to-character assignment file")
     parser.add_argument("--roster-path", type=Path, help="Optional private manager roster used for generic activity bubbles")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--public-host", action="append", default=[],
+                        help="Exact Host header accepted from a loopback TLS proxy")
     parser.add_argument("--inspect-thread", help="Read one local task's lifecycle for validation, without changing its pins")
     args = parser.parse_args()
     desktop = DesktopStatus(args.codex_dir.expanduser().resolve())
@@ -299,7 +303,7 @@ def main():
         print(json.dumps(state.snapshot(), indent=2))
         desktop.close()
         return
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state, args.port))
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state, args.port, args.public_host))
     desktop.start()
     print(f"Agent Office: http://127.0.0.1:{args.port} — Ctrl+C to stop", flush=True)
     try:

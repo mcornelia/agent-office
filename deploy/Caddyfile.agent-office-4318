@@ -1,0 +1,7 @@
+# Include this beside the existing glyph.local site, after moving Agent Office
+# to loopback port 4319. Caddy alone is LAN-facing on 4318.
+https://glyph.local:4318 {
+	tls internal
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:4319
+}
