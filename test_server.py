@@ -6,7 +6,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from server import EventTail, OfficeState, make_handler, presentation_snapshot
+from server import EventTail, OfficeState, is_allowed_request, make_handler, presentation_snapshot
 
 
 def event(kind):
@@ -44,6 +44,16 @@ class OfficeTests(unittest.TestCase):
         self.assertEqual(tail.read()[0],'working')
         with path.open('ab') as f: f.write(complete[25:])
         self.assertEqual(tail.read()[0],'complete')
+
+    def test_proxy_origin_policy_separates_https_public_from_http_loopback(self):
+        public = ['glyph.local:4318']
+        self.assertTrue(is_allowed_request('glyph.local:4318', 'https://glyph.local:4318', 4319, public))
+        self.assertFalse(is_allowed_request('glyph.local:4318', 'http://glyph.local:4318', 4319, public))
+        self.assertFalse(is_allowed_request('evil.example:4318', 'https://evil.example:4318', 4319, public))
+        self.assertFalse(is_allowed_request('glyph.local:4318', 'https://evil.example:4318', 4319, public))
+        self.assertTrue(is_allowed_request('127.0.0.1:4319', 'http://127.0.0.1:4319', 4319, public))
+        self.assertTrue(is_allowed_request('localhost:4319', 'http://localhost:4319', 4319, public))
+        self.assertFalse(is_allowed_request('127.0.0.1:4319', 'https://127.0.0.1:4319', 4319, public))
 
     def test_file_replacement_resets_lifecycle(self):
         path = self.add_task('one',100,'task_complete')

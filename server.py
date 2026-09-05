@@ -227,15 +227,22 @@ class OfficeState:
             return presentation_snapshot(result) if presentation else result
 
 
+def is_allowed_request(host, origin, port, public_hosts=()):
+    """Accept only loopback HTTP or explicitly configured proxy HTTPS origins."""
+    local_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    public_hosts = set(public_hosts)
+    if host in local_hosts:
+        return not origin or origin == f"http://{host}"
+    if host in public_hosts:
+        return not origin or origin == f"https://{host}"
+    return False
+
+
 def make_handler(state, port, public_hosts=()):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             host = self.headers.get("Host", "")
-            # Caddy terminates LAN TLS and proxies on loopback.  Permit only its
-            # explicit public host header; never turn this into a wildcard.
-            allowed = {f"127.0.0.1:{port}", f"localhost:{port}", *public_hosts}
-            origin = self.headers.get("Origin")
-            if host not in allowed or (origin and origin not in {f"http://{h}" for h in allowed}):
+            if not is_allowed_request(host, self.headers.get("Origin"), port, public_hosts):
                 self.send_error(403)
                 return
             request = urlsplit(self.path)
