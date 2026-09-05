@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
 from desktop_status import DesktopStatus, WAIT_FLAGS
+from communications import CommunicationFeed
 
 ROOT = Path(__file__).resolve().parent
 MAX_TAIL = 8 * 1024 * 1024
@@ -67,13 +68,14 @@ class EventTail:
 
 
 class OfficeState:
-    def __init__(self, codex_dir, identity_path=None, desktop_status=None):
+    def __init__(self, codex_dir, identity_path=None, desktop_status=None, roster_path=None):
         self.codex_dir = Path(codex_dir).expanduser().resolve()
         self.identity_path = identity_path
         self.identities = {}
         self.tails = {}
         self.lock = Lock()
         self.desktop_status = desktop_status
+        self.communications = CommunicationFeed(self.codex_dir, roster_path or ROOT / 'manager' / 'team.json')
         if identity_path and identity_path.exists():
             try:
                 data = json.loads(identity_path.read_text())
@@ -180,7 +182,7 @@ class OfficeState:
                 # Drop unused file readers; no transcript data is returned.
                 current_ids = {r["id"] for r in rows}
                 self.tails = {k: v for k, v in self.tails.items() if k[0] in current_ids}
-                return {"connected": True, "source": "local Codex task events and desktop status", "selectionAvailable": False, "approvalStateAvailable": any(s.get('approvalStateAvailable') for s in slots), "observedAt": datetime.now(timezone.utc).isoformat(), "slots": slots}
+                return {"connected": True, "source": "local Codex task events and desktop status", "selectionAvailable": False, "approvalStateAvailable": any(s.get('approvalStateAvailable') for s in slots), "observedAt": datetime.now(timezone.utc).isoformat(), "slots": slots, "communications": self.communications.snapshot(rows)}
             except (OSError, ValueError, sqlite3.Error, RuntimeError) as exc:
                 return {"connected": False, "error": str(exc), "slots": []}
 

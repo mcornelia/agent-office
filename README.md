@@ -69,6 +69,8 @@ The optional manager workflow lets an existing task inspect teammates, coordinat
 
 See [manager setup](manager/README.md). Installing or running the viewer does not send prompts or create automations. Manager setup requires an explicit instruction in your chosen Codex task.
 
+When the configured manager checks the team, animated speech bubbles appear above the manager and the teammate being checked. Follow-up messages have their own labels. The bubbles follow the characters as they move, stagger batched checks, and fade away. Only generic activity labels are displayed; actual conversation text stays private. These are recent observed checks and sends, not generated dialogue.
+
 ## Local data and compatibility
 
 The server binds only to `127.0.0.1`. It rejects unexpected Host and Origin headers, has no write API, and does not serve arbitrary files. No analytics, external fonts, or cloud service is required by Agent Office.
@@ -90,7 +92,7 @@ The interface is plain HTML, CSS, and JavaScript. There is no frontend build dep
 python3 build_view.py
 
 # Run the activity, status, and message-reader checks.
-python3 -m unittest -v test_server.py test_desktop_status.py
+python3 -m unittest -v test_server.py test_desktop_status.py test_communications.py
 python3 -m unittest discover -s manager -p 'test_*.py' -v
 
 # Inspect your current six slots locally. Output contains private task IDs.
@@ -104,6 +106,7 @@ python3 server.py --check
 | `build_view.py` | Generates the committed `index.html` |
 | `server.py` | Read-only local HTTP server and activity mapping |
 | `desktop_status.py` | Local desktop status subscription |
+| `communications.py` | Recent manager check and message metadata |
 | `manager/` | Optional coordination brief, configuration, and context reader |
 
 The standalone `office.html` scene has an example activity preview for interface development. `index.html` always connects to the local activity source.
