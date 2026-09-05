@@ -1,0 +1,9 @@
+{
+  "mode": "pinned",
+  "pins": ["example-scout", "example-bolt", "example-pixel", "example-echo", "example-atlas", "example-nova"],
+  "events": [
+    {"type": "codex-micro-hid-event", "event": {"key": "AG00", "act": 1, "slot": 0, "threadKey": "local:example-scout"}},
+    {"type": "codex-micro-hid-event", "event": {"key": "AG05", "act": 1, "slot": 5, "threadKey": "local:example-nova"}},
+    {"type": "codex-micro-hid-event", "event": {"key": "AG05", "act": 0, "slot": 5, "threadKey": "local:example-nova"}}
+  ]
+}
