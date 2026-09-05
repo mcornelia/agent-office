@@ -109,6 +109,9 @@
     #agent-office .robot[data-walking="true"] .feet { animation:office-footsteps .25s steps(2,end) infinite; }
     #agent-office .robot[data-walking="true"] .robot-head { animation:office-bob .3s ease-in-out infinite alternate; }
     #agent-office .robot[data-state="done"] .robot-body:after { transform:translateY(-12px) rotate(-135deg); }
+    #agent-office .clipboard { display:none; position:absolute; z-index:4; top:26px; left:24px; width:17px; height:22px; border:2px solid #8b693d; border-radius:2px; background:repeating-linear-gradient(#fff8df 0 5px,#b5baa5 5px 6px); transform:rotate(-12deg); box-shadow:1px 2px 1px #0003; }
+    #agent-office .clipboard:before { content:""; position:absolute; top:-4px; left:3px; width:7px; height:5px; border-radius:2px; background:#817860; }
+    #agent-office .robot[data-rounds="true"] .clipboard { display:block; }
     #agent-office .comms-layer { position:absolute; inset:0; pointer-events:none; z-index:20; }
     #agent-office .speech-bubble { position:absolute; width:max-content; max-width:136px; padding:7px 11px 6px; border:1px solid light-dark(#77988c,#7ea995); border-radius:12px; background:light-dark(#fffdf7,#e8f1e8); color:#263a32; box-shadow:0 4px 12px #00000020; text-align:center; font-size:11px; line-height:1.25; transform:translate(-50%,-100%); transition:opacity .2s ease; animation:office-bubble-in .24s ease-out both; }
     #agent-office .speech-bubble[data-speaker="manager"] { background:light-dark(#fff3d3,#f7dfaa); border-color:light-dark(#ba9653,#d0ae69); }
@@ -183,6 +186,7 @@
         a.robot.style.setProperty('--suit',`light-dark(${colors[i][0]},${colors[i][1]})`);
         a.robot.style.setProperty('--trim',`light-dark(${colors[i][2]},${colors[i][3]})`);
         const number=document.createElement('span'); number.className='traveler-number'; number.textContent=String(i+1); a.robot.append(number);
+        const clipboard=document.createElement('span'); clipboard.className='clipboard'; a.robot.append(clipboard);
         room.append(a.robot);
         if(i===2) deskArea.append(shared);
         const key = document.createElement('button'); key.type='button'; key.className='agent-key'; key.textContent=String(i+1);
@@ -192,14 +196,73 @@
       commsLayer.className='comms-layer'; commsLayer.setAttribute('aria-hidden','true'); room.append(commsLayer);
       const commsAnnouncement=document.createElement('span');
       commsAnnouncement.className='comms-announcement'; commsAnnouncement.setAttribute('aria-live','polite'); root.append(commsAnnouncement);
-      const seenCommunications=new Map();
-      const recentPairs=new Map();
-      let commsQueue=[],activeBubbles=[],commsTimer=null,commsFrame=null;
-      function clearCommunications() {
-        clearTimeout(commsTimer); cancelAnimationFrame(commsFrame);
-        commsTimer=null; commsFrame=null; commsQueue=[]; activeBubbles=[];
-        commsLayer.replaceChildren(); commsAnnouncement.textContent='';
+      // ROUNDS_CONTROLLER_START: DOM-independent queue, also exercised by focused tests.
+      function createOfficeRounds(hooks) {
+        const seen=new Map(),pairs=new Map();
+        let queue=[],running=false,generation=0,current=null;
+        const fresh=event=>hooks.now()-event.at<=45 && event.at-hooks.now()<=2;
+        async function drain() {
+          if(running) return;
+          running=true;
+          const turn=generation;
+          const alive=()=>turn===generation;
+          try {
+            while(alive() && queue.length) {
+              const event=queue.shift();
+              const people=hooks.resolve(event);
+              if(!fresh(event) || !people) continue;
+              const valid=()=>alive() && hooks.valid(event,people);
+              current={valid};
+              try {
+                // A failed route retains the existing stationary speech-bubble fallback.
+                try { await hooks.visit(event,people,valid); } catch(_error) { hooks.stopVisit(people); }
+                if(valid() && fresh(event)) await hooks.speak(event,people,valid);
+              } finally { hooks.release(people); current=null; }
+            }
+            if(alive()) await hooks.home(alive);
+          } catch(_error) {
+            // A removed/rebuilt scene must not leave characters held by a failed animation.
+            if(alive()) hooks.cancel();
+          } finally {
+            running=false;
+            if(queue.length) void drain();
+          }
+        }
+        return {
+          receive(events) {
+            const now=hooks.now();
+            for(const [id,at] of seen) if(now-at>50) seen.delete(id);
+            for(const [pair,at] of pairs) if(now-at>50) pairs.delete(pair);
+            for(const raw of Array.isArray(events)?events:[]) {
+              if(!raw || typeof raw.id!=='string' || typeof raw.from!=='string' ||
+                !['overview','check','message'].includes(raw.kind) || !Number.isFinite(raw.at) ||
+                !fresh(raw) || seen.has(raw.id) ||
+                (raw.kind!=='overview' && (typeof raw.to!=='string' || raw.to===raw.from))) continue;
+              // Only metadata crosses into animation; never retain prompt/result payloads.
+              const event={id:raw.id,from:raw.from,to:raw.kind==='overview'?null:raw.to,kind:raw.kind,at:raw.at};
+              seen.set(event.id,event.at);
+              const pair=JSON.stringify([event.from,event.to,event.kind]);
+              if(event.at-(pairs.get(pair)??-Infinity)<10) continue;
+              pairs.set(pair,event.at);
+              queue.push(event);
+            }
+            queue.sort((a,b)=>a.at-b.at);
+            queue=queue.slice(-12);
+            void drain();
+          },
+          sync() { if(current && !current.valid()) this.clear(); },
+          clear() { generation++; queue=[]; current=null; hooks.cancel(); }
+        };
       }
+      // ROUNDS_CONTROLLER_END
+      let activeBubbles=[],commsTimer=null,commsFrame=null,finishSpeech=null;
+      function clearBubbles() {
+        clearTimeout(commsTimer); cancelAnimationFrame(commsFrame);
+        commsTimer=null; commsFrame=null; activeBubbles=[];
+        commsLayer.replaceChildren(); commsAnnouncement.textContent='';
+        const finish=finishSpeech; finishSpeech=null; if(finish) finish();
+      }
+      function clearCommunications() { rounds.clear(); }
       function positionBubbles() {
         if(!root.isConnected || activeBubbles.some(item=>item.agent.threadId!==item.threadId)) {clearCommunications(); return;}
         const bounds=room.getBoundingClientRect();
@@ -221,17 +284,9 @@
         }
         if(activeBubbles.length) commsFrame=requestAnimationFrame(positionBubbles);
       }
-      function playCommunication() {
-        if(activeBubbles.length || !root.isConnected) return;
-        let event,manager,teammate;
-        while(commsQueue.length) {
-          event=commsQueue.shift();
-          manager=agents.find(agent=>agent.threadId===event.from);
-          teammate=agents.find(agent=>agent.threadId===event.to);
-          if(Date.now()/1000-event.at<=45 && manager && (event.kind==='overview' || teammate)) break;
-          event=null;
-        }
-        if(!event) return;
+      function playCommunication(event,{manager,teammate},valid) {
+        if(!valid()) return Promise.resolve();
+        const finished=new Promise(resolve=>{finishSpeech=resolve;});
         const labels={overview:['Checking team'],check:['Checking in','Status check'],message:['Following up','Message received']}[event.kind];
         const participants=event.kind==='overview'?[manager]:[manager,teammate];
         participants.forEach((agent,index)=>{
@@ -247,26 +302,12 @@
         positionBubbles();
         commsTimer=setTimeout(()=>{
           activeBubbles.forEach(item=>item.element.classList.add('is-leaving'));
-          commsTimer=setTimeout(()=>{
-            cancelAnimationFrame(commsFrame);commsFrame=null;activeBubbles=[];commsLayer.replaceChildren();
-            playCommunication();
-          },220);
+          commsTimer=setTimeout(clearBubbles,reducedMotion.matches?0:220);
         },event.kind==='overview'?2400:4200);
+        return finished;
       }
       function receiveCommunications(events) {
-        const now=Date.now()/1000;
-        for(const [id,at] of seenCommunications) if(now-at>50) seenCommunications.delete(id);
-        for(const [pair,at] of recentPairs) if(now-at>50) recentPairs.delete(pair);
-        for(const event of Array.isArray(events)?events:[]) {
-          if(!event || typeof event.id!=='string' || !['overview','check','message'].includes(event.kind) || !Number.isFinite(event.at) || now-event.at>45 || event.at-now>2 || seenCommunications.has(event.id)) continue;
-          seenCommunications.set(event.id,event.at);
-          const pair=`${event.from}:${event.to}:${event.kind}`;
-          if(event.at-(recentPairs.get(pair)??-Infinity)<10) continue;
-          recentPairs.set(pair,event.at);
-          commsQueue.push(event);
-        }
-        commsQueue=commsQueue.slice(-12);
-        playCommunication();
+        rounds.receive(events);
       }
       window.addEventListener('pagehide',clearCommunications,{once:true});
       function render() {
@@ -296,6 +337,17 @@
         const homeX=d.left-r.left+d.width/2-19;
         const homeY=d.top-r.top+72;
         const laneY=s.top-r.top+47+(a.index>=3?43:0);
+        if(location && typeof location==='object') {
+          const target=agents.find(agent=>agent.threadId===location.desk);
+          if(!target) return {x:homeX,y:homeY};
+          const desk=target.station.getBoundingClientRect(),home=spot(target,'home');
+          // Stand in the gap beside the colleague, above nameplates at narrow widths.
+          const side=target.index%3===2?-1:1;
+          const x=Math.max(4,Math.min(r.width-55,home.x+side*44));
+          const y=home.y+(desk.width<135?0:12);
+          if(location.aisle) return {x,y:spot(target,'corridor').y};
+          return {x,y};
+        }
         if(location==='home') return {x:homeX,y:homeY};
         if(location==='corridor') return {x:homeX,y:laneY};
         if(location==='board') return {x:s.left-r.left+8+(a.index%3)*38,y:laneY};
@@ -304,7 +356,7 @@
       }
       function position(a,p,duration=0) {
         a.position=p;
-        a.robot.style.setProperty('--walk-duration',`${duration}ms`);
+        a.robot.style.setProperty('--walk-duration',`${reducedMotion.matches?0:duration}ms`);
         a.robot.style.transform=`translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;
       }
       const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -318,12 +370,91 @@
         if(!root.isConnected || a.runId!==runId) return;
         a.moving=false; a.robot.dataset.walking='false';
       }
+      let roundManager=null;
+      function freeze(a) {
+        const bounds=room.getBoundingClientRect(),robot=a.robot.getBoundingClientRect();
+        a.runId++; a.moving=false; a.robot.dataset.walking='false';
+        position(a,{x:robot.left-bounds.left,y:robot.top-bounds.top});
+      }
+      function hold(a) {
+        if(a.roundHold) return;
+        freeze(a); a.roundHold={threadId:a.threadId};
+      }
+      function release(a) {
+        if(!a || !a.roundHold) return;
+        a.roundHold=null; a.robot.dataset.rounds='false';
+        a.runId++; a.moving=false; a.robot.dataset.walking='false'; a.location='home';
+        if(root.isConnected && a.state==='working') void work(a);
+        else position(a,spot(a,'home'),reducedMotion.matches?0:250);
+      }
+      function roundValid(event,{manager,teammate}) {
+        return root.isConnected && manager.threadId===event.from &&
+          (event.kind==='overview' || teammate.threadId===event.to);
+      }
+      async function roundRoute(a,locations,valid) {
+        const runId=a.runId;
+        for(const location of locations) {
+          if(!valid() || a.runId!==runId || reducedMotion.matches) return;
+          await walk(a,location,appearance.pace==='Quick'?0.65:1);
+        }
+      }
+      const rounds=createOfficeRounds({
+        now:()=>Date.now()/1000,
+        resolve(event) {
+          const manager=agents.find(a=>a.threadId===event.from);
+          const teammate=agents.find(a=>a.threadId===event.to);
+          return manager && (event.kind==='overview' || teammate)?{manager,teammate}:null;
+        },
+        valid:roundValid,
+        async visit(event,people,valid) {
+          const {manager,teammate}=people;
+          if(roundManager && roundManager!==manager) release(roundManager);
+          roundManager=manager; hold(manager); manager.robot.dataset.rounds='true';
+          if(event.kind==='overview' || reducedMotion.matches) return;
+          // If input is needed, preserve the stationary communication fallback.
+          if(['waiting','error','unknown','unassigned'].includes(manager.state)) return;
+          hold(teammate);
+          const destination={desk:event.to};
+          const home=spot(teammate,'home');
+          const colleagueRoute=Math.hypot(teammate.position.x-home.x,teammate.position.y-home.y)<2?[]:['corridor','home'];
+          // Travel via the shared aisle, then pause with the colleague at their desk.
+          const managerRoute=[manager.location?.desk?{desk:manager.location.desk,aisle:true}:'corridor',
+            {desk:event.to,aisle:true},destination];
+          await Promise.all([
+            roundRoute(manager,managerRoute,valid),
+            roundRoute(teammate,colleagueRoute,valid)
+          ]);
+        },
+        stopVisit({manager,teammate}) {
+          for(const a of [manager,teammate]) if(a?.roundHold) freeze(a);
+        },
+        speak:playCommunication,
+        release({teammate}) { release(teammate); },
+        async home(alive) {
+          const manager=roundManager;
+          if(!manager) return;
+          const identity=manager.threadId;
+          const valid=()=>alive() && root.isConnected && manager.threadId===identity;
+          try {
+            if(manager.location?.desk) await roundRoute(manager,[{desk:manager.location.desk,aisle:true},'corridor','home'],valid);
+          } finally {
+            if(roundManager===manager) {roundManager=null; release(manager);}
+          }
+        },
+        cancel() {
+          clearBubbles(); roundManager=null;
+          agents.forEach(a=>{if(a.roundHold) {freeze(a);release(a);}});
+        }
+      });
+      reducedMotion.addEventListener('change',()=>{
+        if(reducedMotion.matches) clearCommunications();
+      });
       function reflow() {
-        agents.forEach(a=>{if(!a.moving) position(a,spot(a,a.location));});
+        agents.forEach(a=>{if(!a.moving && (!a.roundHold || a.location?.desk)) position(a,spot(a,a.location));});
       }
       async function work(a) {
         const runId=a.runId;
-        const valid=()=>root.isConnected && a.state==='working' && a.runId===runId;
+        const valid=()=>root.isConnected && a.state==='working' && a.runId===runId && !a.roundHold;
         const pace=appearance.pace==='Quick'?0.65:1;
         const route=[
           ['corridor','Heading to the whiteboard…',0],
@@ -373,21 +504,25 @@
             agents.forEach(a=>{a.runId++;a.state=a.threadId?'unknown':'unassigned';a.moving=false;a.location='home';a.robot.hidden=!a.threadId;a.robot.dataset.walking='false';position(a,spot(a,'home'));});
             render(); return;
           }
+          if(items.some(item=>agents[item.avatar]?.roundHold && agents[item.avatar].threadId!==item.id)) clearCommunications();
           for(const item of items) {
             const a=agents[item.avatar];
             if(!a || !Number.isInteger(item.key) || item.key<1 || item.key>6) continue;
             const previous=a.state; const changed=a.threadId!==item.id;
-            if(changed || previous!==item.state) a.runId++;
+            if(changed || (previous!==item.state && !a.roundHold)) a.runId++;
             a.threadId=item.id; a.keyNumber=item.key; a.task=item.title; a.state=item.state;
             a.displayTitle=item.id?String(item.title):'Unassigned';
             Object.assign(a,splitPinnedName(a.displayTitle));
             a.key.textContent=String(item.key); keyArea.append(a.key);
             a.robot.querySelector('.traveler-number').textContent=String(item.key);
             a.robot.hidden=!item.id;
-            if(a.state==='working' && (changed || previous!=='working')) work(a);
-            else if(a.state!=='working') {a.moving=false;a.location='home';a.robot.dataset.walking='false';position(a,spot(a,'home'),250);}
+            if(!a.roundHold) {
+              if(a.state==='working' && (changed || previous!=='working')) work(a);
+              else if(a.state!=='working') {a.moving=false;a.location='home';a.robot.dataset.walking='false';position(a,spot(a,'home'),250);}
+            }
           }
           render();
+          rounds.sync();
           receiveCommunications(snapshot.communications);
         }
       };

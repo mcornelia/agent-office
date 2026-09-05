@@ -1,6 +1,8 @@
 import json
 import tempfile
 import unittest
+import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from communications import CommunicationFeed, communication_events
@@ -14,6 +16,13 @@ def record(tool='read_thread', args=None, at=1000, status='completed'):
 
 
 class CommunicationTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('node'), 'Node.js is needed only for browser controller tests')
+    def test_office_rounds_controller(self):
+        result = subprocess.run(
+            [shutil.which('node'), '--test', str(Path(__file__).with_name('test_rounds.cjs'))],
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_only_metadata_reaches_the_page(self):
         event=record('send_message_to_thread',{'threadId':'worker','prompt':'PRIVATE PROMPT'})
         result=communication_events(event,'manager',{'worker'},1001)
