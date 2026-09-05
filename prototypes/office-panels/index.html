@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent Office panels</title><link rel="stylesheet" href="office-panels.css"></head>
+<body><main class="office" data-presentation="false">
+  <header><div><p class="eyebrow">THE AGENT OFFICE / PROTOTYPE</p><h1>Jobs stay visible. Decisions stay yours.</h1></div><button id="presentation" aria-pressed="false">Present safely</button></header>
+  <section class="summary" aria-label="Office summary"><strong>6 agents</strong><span>3 working</span><span>1 needs you</span><span>2 results ready</span></section>
+  <section class="board" aria-labelledby="board-title"><div class="section-title"><div><p class="eyebrow">LIVE JOB WHITEBOARD</p><h2 id="board-title">Who is doing what, right now</h2></div><span class="live">● LIVE</span></div><div class="lanes" id="lanes"></div></section>
+  <section class="lower"><aside class="needs" aria-labelledby="needs-title"><p class="eyebrow">NEEDS YOU</p><h2 id="needs-title">One physical key is waiting</h2><div class="key-hint"><span aria-hidden="true">⌘</span><b>Key 4 · Aimee</b><small>Press 4 or select Aimee’s card</small></div><p>Choose the publish scope for the family guide.</p><div class="actions"><button class="primary" id="resolve">Review decision</button><button class="quiet">Snooze</button></div></aside>
+  <section class="shelf" aria-labelledby="shelf-title"><div class="section-title"><div><p class="eyebrow">RESULTS SHELF</p><h2 id="shelf-title">Open a folder to inspect a result</h2></div><span id="result-count">2 unread</span></div><div class="folders" id="folders" role="list"></div><article class="result-detail" id="result-detail" aria-live="polite"></article></section></section>
+  <dialog id="decision"><form method="dialog"><p class="eyebrow">KEY 4 / AIMEE</p><h2>Publish scope</h2><p>Prototype action only. This is where the resolved action item appears.</p><menu><button value="cancel">Keep waiting</button><button class="primary" value="resolved">Mark resolved</button></menu></form></dialog>
+</main><script src="office-panels.js"></script></body></html>
