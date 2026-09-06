@@ -194,6 +194,20 @@ class JobBoardTests(unittest.TestCase):
         self.update(at=1020, lastObservedStatus='testing', blocker=None)
         self.assertEqual(self.snapshot(at=1021)['needsYou'], [])
 
+    def test_verified_reconciliation_clears_staleness_and_resolved_need(self):
+        self.update(lastObservedStatus='awaiting_user_review', updatedAt=iso(1010),
+                    blocker='PRIVATE REVIEW BLOCKER')
+        stale=self.snapshot(at=1121)
+        self.assertTrue(stale['source']['stale'])
+        self.assertTrue(stale['needsYou'][0]['stale'])
+        self.update(at=1130, lastObservedStatus='testing', updatedAt=iso(1130), blocker=None)
+        refreshed=self.snapshot(at=1131)
+        self.assertFalse(refreshed['source']['stale'])
+        self.assertEqual(refreshed['needsYou'], [])
+        assignment=self.worker_agent(refreshed)['assignment']
+        self.assertEqual(assignment['stage'], 'testing')
+        self.assertFalse(assignment['stale'])
+
     def test_missing_blocker_field_is_not_resolution(self):
         self.update(lastObservedStatus='blocked', blocker='PRIVATE BLOCKER')
         first = self.snapshot(at=1011)['needsYou'][0]

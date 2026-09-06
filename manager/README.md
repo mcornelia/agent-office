@@ -27,6 +27,14 @@ Give the task the full local path if the repository is outside its current worki
 
 The schedule runs inside your existing manager task. It may wake while the team is idle to discover new assignments; idle checks should stay quiet. Local checks need the Mac and Codex running. The repository does not contain an installed schedule, and cloning it does not change any of your automations.
 
+The whiteboard is a view of `manager/state.json`, not an automatic summary of every Codex or sub-agent action. The manager updates that ledger after a real roster check and after work it coordinates in its own task. A heartbeat may not run while the manager task is already busy, so the active manager run must refresh the ledger before it finishes.
+
+For an immediate reconciliation, say this in the manager task:
+
+> Refresh the office board now. Inspect the roster and any work you coordinated in this task, reconcile the private ledger without replacing unrelated history, resolve only decisions the user has actually answered, and update its freshness timestamp. Tell me only about meaningful changes or blockers.
+
+`lastCheckAt` means the ledger was actually reconciled; it should never be advanced merely to hide the stale badge. Each changed job also gets its own `updatedAt` timestamp.
+
 The live whiteboard and result panels remain generic until the manager writes explicitly safe `presentation` labels and summaries into the private ledger. The generated brief explains this boundary and the supported work stages. Edit `manager/team.json` to add a safe `presentation.label` for each agent if you want names on the board; raw task titles, objectives, evidence, and local paths are never copied automatically.
 
 ## What the manager does

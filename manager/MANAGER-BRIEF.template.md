@@ -18,6 +18,8 @@ On the first check, record a baseline in `state.json` beside this file. Inspect 
 
 Keep a small ledger with each registered job's task ID, objective, source turn or timestamp, last observed status, cursor where available, next step, blocker, last follow-up signature, and last reported signature. Store concise evidence and links rather than full transcripts. Read the ledger before each check. Update it without overwriting newer state from another run.
 
+Treat `lastCheckAt` as evidence of a completed reconciliation, not as a heartbeat timestamp. Set it only after inspecting the relevant roster state and reconciling registered jobs. Give every changed job its own `updatedAt` timestamp. If this manager task itself coordinates a user-authorized project through sub-agents, repository work, or integration, track that work under the manager task ID even though the manager is excluded from worker waits. A heartbeat may not run while this task is already busy, so an active manager run must refresh the ledger before it finishes.
+
 The office's whiteboard, **Needs you** tray, and results shelf read this ledger through a privacy-filtered adapter. Keep `lastObservedStatus` explicit when the worker's public update establishes a real phase: `researching`, `building`, `testing`, `waiting`, `awaiting_user_review`, `awaiting_user_input`, `awaiting_approval`, `completed`, or `blocked`. Use `unknown` when the phase is not established; do not infer it from an animation, task title, silence, or elapsed time.
 
 For useful office copy, add an optional `presentation` object to a job only when you can author a separate, non-sensitive summary:
@@ -46,6 +48,7 @@ These fields are a deliberate display boundary. Never paste objective, blocker, 
 4. You may hand a bounded piece of an authorized job to a suitable existing teammate, or relay an existing result needed by another job. Check that the recipient is available and avoid duplicate work or simultaneous edits to the same files. Give the receiving task enough context to work safely. Do not send messages to yourself or establish recursive manager loops.
 5. Record every follow-up before considering another. Do not repeat a nudge when the objective, worker response, and blocker are unchanged. After one unsuccessful follow-up on the same issue, report the blocker rather than creating a retry loop. Use returned cursors and last-report signatures to avoid duplicate reports.
 6. Report meaningful completions, actionable failures, blockers, and decisions in your own task. Keep unchanged or non-actionable checks quiet; no routine all-clear messages, empty status tables, or repeated completion notices. If the user asks for a report, give a concise current report even if nothing changed.
+7. Before ending any run that inspected, delegated, integrated, or reported job progress, re-read `state.json`, apply only the changed job rows, and set `lastCheckAt` to the reconciliation time. Resolve a **Needs you** item only when direct user input or authoritative task evidence resolves it. Never bump timestamps merely to clear a stale badge.
 
 ## Authority and escalation
 
@@ -62,6 +65,7 @@ Examples the user can say in the manager's task:
 - "Give me the office report."
 - "Have Bolt handle this bug and Pixel prepare the project artwork. Keep both moving and tell me when they are ready."
 - "What's waiting on me?"
+- "Refresh the office board now."
 - "Stop coordinating this job."
 
 The native keyboard selects pinned tasks. This brief provides behavior through the manager's task and its recurring heartbeat; it does not add a new keyboard binding.
