@@ -17,8 +17,8 @@ The prototype uses an opt-in per-user LaunchAgent plist for Start at Login. That
 
 ## Runtime behavior
 
-- The controller checks `http://127.0.0.1:4318/api/health` before starting anything.
-- A file lock serializes concurrent starts. A healthy existing Agent Office is reused, and a different service on port 4318 causes a safe failure.
+- The controller checks its configured loopback port (4318 by default) before starting anything.
+- A file lock serializes concurrent starts. A healthy existing Agent Office is reused, and a different service on the configured port causes a safe failure.
 - The launcher records only processes it started. **Stop Local Server** refuses to terminate a process that does not match that ownership record.
 - Private runtime files and logs live in `~/Library/Application Support/Agent Office` with owner-only permissions.
 - The menu-bar app remains available when its office window is closed. Quitting the app leaves the local server running; use **Stop Local Server** when desired.
@@ -61,9 +61,17 @@ Enable Start at Login only when intentionally requested:
 ./desktop/install.sh --enable-login
 ```
 
-Alternatively, toggle **Start at Login** from the menu after installation. The plist is `~/Library/LaunchAgents/com.mcornelia.agent-office.plist`; it opens the status app in background login mode and does not keep-restart a failing process.
+Alternatively, toggle **Start at Login** from the menu after installation. The plist is `~/Library/LaunchAgents/com.mcornelia.agent-office.launcher.plist`; it opens the status app in background login mode and does not keep-restart a failing process. This label is separate from the optional always-on LAN server.
 
 The installer refuses to overwrite an existing application. Uninstall or move that copy before installing a replacement.
+
+For a Caddy LAN deployment that exposes `https://glyph.local:4318` while keeping the Python backend on loopback port 4319, build the local app with:
+
+```sh
+AGENT_OFFICE_BACKEND_PORT=4319 AGENT_OFFICE_PUBLIC_HOST=glyph.local:4318 ./desktop/install.sh
+```
+
+See [LAN HTTPS deployment](../docs/lan-https.md). Start at Login remains off unless you add `--enable-login` or toggle it in the menu.
 
 ## Uninstall later
 

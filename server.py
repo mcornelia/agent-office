@@ -15,6 +15,7 @@ from threading import Lock
 from urllib.parse import parse_qs, urlsplit
 from desktop_status import DesktopStatus, WAIT_FLAGS
 from communications import CommunicationFeed
+from job_board import JobBoardFeed
 
 ROOT = Path(__file__).resolve().parent
 MAX_TAIL = 8 * 1024 * 1024
@@ -30,6 +31,11 @@ def presentation_snapshot(snapshot):
             "error": "Activity unavailable",
             "slots": [],
             "communications": [],
+            "jobBoard": {
+                "schemaVersion": 1, "presentation": True, "observedAt": None,
+                "source": {"available": False, "stale": True, "issues": []},
+                "agents": [], "needsYou": [], "results": [],
+            },
         }
     slots = []
     for item in snapshot.get("slots", []):
@@ -55,6 +61,22 @@ def presentation_snapshot(snapshot):
         # Communication events contain stable task IDs, so presentation mode
         # suppresses the event layer rather than attempting to pseudonymize it.
         "communications": [],
+        # The normal board contains deliberately authored safe copy, but a
+        # presentation should disclose only that board data exists.  This is a
+        # server-side boundary; CSS is only a visual second layer.
+        "jobBoard": {
+            "schemaVersion": 1,
+            "presentation": True,
+            "observedAt": snapshot.get("jobBoard", {}).get("observedAt"),
+            "source": {
+                "available": bool(snapshot.get("jobBoard", {}).get("source", {}).get("available")),
+                "stale": bool(snapshot.get("jobBoard", {}).get("source", {}).get("stale", True)),
+                "issues": [],
+            },
+            "agents": [],
+            "needsYou": [],
+            "results": [],
+        },
     }
 
 
@@ -114,7 +136,9 @@ class OfficeState:
         self.tails = {}
         self.lock = Lock()
         self.desktop_status = desktop_status
-        self.communications = CommunicationFeed(self.codex_dir, roster_path or ROOT / 'manager' / 'team.json')
+        self.roster_path = Path(roster_path) if roster_path else ROOT / 'manager' / 'team.json'
+        self.communications = CommunicationFeed(self.codex_dir, self.roster_path)
+        self.job_board = JobBoardFeed(self.roster_path)
         if identity_path and identity_path.exists():
             try:
                 data = json.loads(identity_path.read_text())
@@ -167,6 +191,8 @@ class OfficeState:
 
     def snapshot(self, presentation=False):
         with self.lock:
+            slots = []
+            runtime_by_id = {}
             try:
                 app = self.app_state()
                 con = self.connect()
@@ -196,7 +222,6 @@ class OfficeState:
                     temporary.write_text(json.dumps(self.identities, indent=2) + "\n")
                     temporary.chmod(0o600)
                     temporary.replace(self.identity_path)
-                slots = []
                 for i, row in enumerate(rows):
                     try:
                         observed, event_at = self.observed(row)
@@ -204,6 +229,7 @@ class OfficeState:
                     except (OSError, RuntimeError):
                         state, event_at = "unknown", None
                     runtime = self.desktop_status.get(row['id']) if self.desktop_status else None
+                    runtime_by_id[row['id']] = runtime
                     if runtime:
                         if runtime['type'] == 'active':
                             state = 'waiting' if WAIT_FLAGS.intersection(runtime['activeFlags']) else 'working'
@@ -221,9 +247,13 @@ class OfficeState:
                 # Drop unused file readers; no transcript data is returned.
                 current_ids = {r["id"] for r in rows}
                 self.tails = {k: v for k, v in self.tails.items() if k[0] in current_ids}
-                result = {"connected": True, "source": "local Codex task events and desktop status", "selectionAvailable": False, "approvalStateAvailable": any(s.get('approvalStateAvailable') for s in slots), "observedAt": datetime.now(timezone.utc).isoformat(), "slots": slots, "communications": self.communications.snapshot(rows)}
+                result = {"connected": True, "source": "local Codex task events and desktop status", "selectionAvailable": False, "approvalStateAvailable": any(s.get('approvalStateAvailable') for s in slots), "observedAt": datetime.now(timezone.utc).isoformat(), "slots": slots, "communications": self.communications.snapshot(rows), "jobBoard": self.job_board.snapshot(slots, runtime_by_id)}
             except (OSError, ValueError, sqlite3.Error, RuntimeError) as exc:
-                result = {"connected": False, "error": str(exc), "slots": []}
+                # The manager ledger is independent of the desktop status
+                # source.  Preserve a pending request/result view through a
+                # temporary Codex database or stream outage.
+                result = {"connected": False, "error": str(exc), "slots": [],
+                          "jobBoard": self.job_board.snapshot([], {})}
             return presentation_snapshot(result) if presentation else result
 
 

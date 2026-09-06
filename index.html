@@ -7,11 +7,12 @@
   <title>Agent Office — local task activity</title>
   <style>
     body { margin:0; padding:20px; background:light-dark(#edece6,#17201a); color:light-dark(#263a32,#eef1e8); font-family:system-ui,sans-serif; }
-    main { max-width:850px; margin:0 auto; }
-    .connection-note { max-width:850px; margin:12px auto 0; font-size:13px; line-height:1.5; color:light-dark(#59695e,#bdcabc); }
+    main { max-width:1120px; margin:0 auto; }
+    .connection-note { max-width:1120px; margin:12px auto 0; font-size:13px; line-height:1.5; color:light-dark(#59695e,#bdcabc); }
     html[data-presentation="true"] body { padding:0; min-height:100vh; display:grid; place-items:center; overflow:hidden; background:#101712; }
     html[data-presentation="true"] main { width:min(100vw,1180px); max-width:none; }
     html[data-presentation="true"] #agent-office .office-bottom,
+    html[data-presentation="true"] #agent-office .job-hub,
     html[data-presentation="true"] .connection-note { display:none; }
     html[data-presentation="true"] #agent-office .office-window { border-radius:0; box-shadow:none; }
     @media(max-width:490px) { body { padding:8px; } }
@@ -92,6 +93,7 @@
     #agent-office .station[data-state="done"] .robot { transform:translate(20px,-2px); }
     #agent-office .station[data-state="done"] .robot-body:after { transform:translateY(-12px) rotate(-135deg); }
     #agent-office .station[data-state="done"] .station-state { color:var(--office-green); }
+    #agent-office .station.is-spotlit { animation:office-spotlight 1.15s ease-out; box-shadow:0 0 0 3px light-dark(#f1c45d,#ffe083),0 0 28px 10px light-dark(#efc35380,#ffe08355); }
     #agent-office .result-sheet { opacity:0; position:absolute; top:89px; left:calc(50% + 17px); width:17px; height:21px; background:var(--office-panel); border-top:5px solid var(--office-green); transform:rotate(10deg); transition:opacity .2s; }
     #agent-office .station[data-state="done"] .result-sheet { opacity:1; }
     #agent-office .office-bottom { padding:18px 22px 20px; display:grid; grid-template-columns:224px minmax(0,1fr); gap:23px; align-items:center; }
@@ -119,7 +121,42 @@
     #agent-office .legend-item:nth-child(3) .legend-dot { background:light-dark(#bc7b16,#edb450); }
     #agent-office [data-cozy="false"] .back-wall { display:none; }
     #agent-office [data-cozy="false"] .office-room { padding-top:14px; }
+    #agent-office .job-hub { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(260px,.8fr); gap:14px; padding:18px 22px; background:light-dark(#eee9dc,#1d2a22); border-bottom:1px solid var(--office-line); }
+    #agent-office .job-panel { min-width:0; border:1px solid var(--office-line); border-radius:10px; background:var(--office-panel); box-shadow:0 4px 0 var(--office-shadow); padding:14px; }
+    #agent-office .job-panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; }
+    #agent-office .job-eyebrow { display:block; color:var(--office-muted); font-size:10px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
+    #agent-office .job-panel h2 { margin:2px 0 0; font-size:15px; line-height:1.25; }
+    #agent-office .board-health { flex:none; padding:3px 7px; border-radius:999px; background:light-dark(#e4eee7,#34463a); color:var(--office-green); font-size:10px; font-weight:700; text-transform:uppercase; }
+    #agent-office .board-health[data-stale="true"] { background:light-dark(#f5e7c8,#4a3d27); color:light-dark(#8b5e12,#f0c46d); }
+    #agent-office .job-list { display:grid; gap:6px; }
+    #agent-office .job-row { width:100%; min-width:0; display:grid; grid-template-columns:minmax(98px,.7fr) minmax(0,1.7fr) auto; align-items:center; gap:9px; padding:8px 9px; border:1px solid var(--office-line); border-left:5px solid var(--office-blue); border-radius:7px; background:light-dark(#faf8f1,#2c3a30); color:inherit; font:inherit; text-align:left; cursor:pointer; }
+    #agent-office .job-row[data-stage="waiting"] { border-left-color:light-dark(#bc7b16,#edb450); }
+    #agent-office .job-row[data-stage="testing"] { border-left-color:var(--office-green); }
+    #agent-office .job-row[data-stage="unknown"],#agent-office .job-row[data-stage="ready"] { border-left-color:var(--office-line); }
+    #agent-office .job-agent { font-size:12px; font-weight:700; overflow-wrap:anywhere; }
+    #agent-office .job-title { min-width:0; color:var(--office-muted); font-size:12px; overflow-wrap:anywhere; }
+    #agent-office .stage-chip { padding:3px 7px; border-radius:999px; background:light-dark(#e8edf1,#17241d); color:var(--office-muted); font-size:10px; font-weight:700; text-transform:uppercase; white-space:nowrap; }
+    #agent-office .job-side { min-width:0; display:grid; gap:14px; align-content:start; }
+    #agent-office .needs-panel { border-color:light-dark(#d5a84d,#8d672c); background:light-dark(#fff8e8,#40351f); }
+    #agent-office .needs-count { min-width:24px; height:24px; display:grid; place-items:center; border-radius:999px; background:light-dark(#d99a25,#edb450); color:#382709; font-size:11px; font-weight:800; }
+    #agent-office .needs-list { display:grid; gap:7px; }
+    #agent-office .need-card { width:100%; display:grid; grid-template-columns:34px minmax(0,1fr); gap:9px; align-items:start; padding:9px; border:1px solid light-dark(#d6b66c,#8d713a); border-radius:7px; background:light-dark(#fffdf7,#4a3c23); color:inherit; font:inherit; text-align:left; cursor:pointer; }
+    #agent-office .need-key { width:32px; height:32px; display:grid; place-items:center; border:1px solid var(--office-edge); border-bottom-width:4px; border-radius:6px; background:light-dark(#f1d58f,#d9b45f); color:#3b2b0d; font-weight:800; }
+    #agent-office .need-card strong,#agent-office .need-card small { display:block; overflow-wrap:anywhere; }
+    #agent-office .need-card strong { font-size:12px; }
+    #agent-office .need-card small { margin-top:2px; color:var(--office-muted); font-size:11px; }
+    #agent-office .panel-empty { margin:0; padding:8px 0; color:var(--office-muted); font-size:12px; }
+    #agent-office .folders { display:flex; gap:9px; overflow-x:auto; padding:7px 3px 9px; }
+    #agent-office .result-folder { min-width:122px; position:relative; padding:13px 9px 8px; border:0; border-bottom:6px solid var(--office-edge); border-radius:4px; background:var(--office-desk); color:light-dark(#443119,#fff4d7); font:inherit; font-size:11px; text-align:left; cursor:pointer; }
+    #agent-office .result-folder:before { content:""; position:absolute; top:-6px; left:8px; width:42px; height:8px; border-radius:3px 3px 0 0; background:var(--office-desk); }
+    #agent-office .result-folder[aria-selected="true"] { outline:2px solid var(--office-green); outline-offset:2px; }
+    #agent-office .result-detail { min-height:62px; margin-top:4px; padding:9px; border-radius:7px; background:light-dark(#e8eadf,#344139); color:var(--office-muted); font-size:11px; overflow-wrap:anywhere; }
+    #agent-office .result-detail strong { display:block; margin-bottom:3px; color:var(--office-ink); font-size:12px; }
+    #agent-office .result-links { display:flex; flex-wrap:wrap; gap:8px; margin-top:7px; }
+    #agent-office .result-links a { color:light-dark(#075aa8,#83bdff); font-weight:700; }
+    @media(max-width:720px) { #agent-office .job-hub { grid-template-columns:1fr; } }
     @media(max-width:490px) { #agent-office .office-header { padding:14px; gap:5px; } #agent-office .office-room { padding-left:6px; padding-right:6px; } #agent-office .back-wall { margin-left:-6px; margin-right:-6px; } #agent-office .office-desks { column-gap:0; } #agent-office .worktable { width:88px; } #agent-office .mug { left:calc(50% + 29px); } #agent-office .station[data-state="working"] .robot { transform:translate(41px,-39px); } #agent-office .office-bottom { grid-template-columns:1fr; padding:16px; gap:16px; } #agent-office .agent-key { min-height:44px; } #agent-office .task-input { font-size:16px; } #agent-office .office-legend { padding-left:16px; padding-right:16px; gap:10px; } }
+    @media(max-width:490px) { #agent-office .job-hub { padding:14px; } #agent-office .job-row { grid-template-columns:minmax(86px,.8fr) minmax(0,1.5fr); } #agent-office .stage-chip { grid-column:1/-1; justify-self:start; } }
     #agent-office .shared-space { grid-column:1/-1; height:164px; position:relative; margin:0 7px; border-radius:8px; background:light-dark(#d8ddca,#414d3b); }
     #agent-office .whiteboard { position:absolute; top:7px; left:10px; width:31%; height:43px; background:var(--office-panel); border:4px solid var(--office-edge); border-radius:3px; text-align:center; color:var(--office-muted); font-size:11px; padding:7px 2px; }
     #agent-office .reference-shelf { position:absolute; top:7px; right:10px; width:31%; height:43px; background:var(--office-desk); border-bottom:6px solid var(--office-edge); text-align:center; font-size:11px; padding:7px 2px; }
@@ -131,6 +168,9 @@
     #agent-office .robot[data-walking="true"] .feet { animation:office-footsteps .25s steps(2,end) infinite; }
     #agent-office .robot[data-walking="true"] .robot-head { animation:office-bob .3s ease-in-out infinite alternate; }
     #agent-office .robot[data-state="done"] .robot-body:after { transform:translateY(-12px) rotate(-135deg); }
+    #agent-office .clipboard { display:none; position:absolute; z-index:4; top:26px; left:24px; width:17px; height:22px; border:2px solid #8b693d; border-radius:2px; background:repeating-linear-gradient(#fff8df 0 5px,#b5baa5 5px 6px); transform:rotate(-12deg); box-shadow:1px 2px 1px #0003; }
+    #agent-office .clipboard:before { content:""; position:absolute; top:-4px; left:3px; width:7px; height:5px; border-radius:2px; background:#817860; }
+    #agent-office .robot[data-rounds="true"] .clipboard { display:block; }
     #agent-office .comms-layer { position:absolute; inset:0; pointer-events:none; z-index:20; }
     #agent-office .speech-bubble { position:absolute; width:max-content; max-width:136px; padding:7px 11px 6px; border:1px solid light-dark(#77988c,#7ea995); border-radius:12px; background:light-dark(#fffdf7,#e8f1e8); color:#263a32; box-shadow:0 4px 12px #00000020; text-align:center; font-size:11px; line-height:1.25; transform:translate(-50%,-100%); transition:opacity .2s ease; animation:office-bubble-in .24s ease-out both; }
     #agent-office .speech-bubble[data-speaker="manager"] { background:light-dark(#fff3d3,#f7dfaa); border-color:light-dark(#ba9653,#d0ae69); }
@@ -145,6 +185,7 @@
     @keyframes office-speaking { 0%,70%,100% { transform:translateY(0); opacity:.4; } 35% { transform:translateY(-3px); opacity:1; } }
     @keyframes office-footsteps { 0% { transform:translateY(0) rotate(-9deg); } 100% { transform:translateY(-3px) rotate(9deg); } }
     @keyframes office-bob { from { transform:translateY(0); } to { transform:translateY(-2px); } }
+    @keyframes office-spotlight { 0%,100% { box-shadow:none; } 18%,68% { box-shadow:0 0 0 3px light-dark(#f1c45d,#ffe083),0 0 28px 10px light-dark(#efc35380,#ffe08355); } }
     @media(max-width:490px) { #agent-office .shared-space { margin-left:0; margin-right:0; } #agent-office .whiteboard { left:5px; width:34%; } #agent-office .reference-shelf { right:5px; width:34%; } #agent-office .shared-label { display:none; } }
     @media(prefers-reduced-motion:reduce) { #agent-office *,#agent-office *:before,#agent-office *:after { transition:none!important; animation:none!important; } }
   </style>
@@ -154,6 +195,23 @@
       <div class="back-wall" aria-hidden="true"><div class="window-view"></div><div class="wall-sign">SIX DESKS<br>ONE TEAM</div><div class="window-view"></div></div>
       <div class="office-desks" aria-label="Agent desks"></div>
     </div>
+    <section class="job-hub" aria-label="Agent work and results">
+      <section class="job-panel board-panel" aria-labelledby="live-board-title">
+        <div class="job-panel-head"><div><span class="job-eyebrow">Live job whiteboard</span><h2 id="live-board-title">Who is doing what</h2></div><span class="board-health" data-stale="true">Waiting</span></div>
+        <div class="job-list"><p class="panel-empty">Waiting for the manager ledger…</p></div>
+      </section>
+      <div class="job-side">
+        <section class="job-panel needs-panel" aria-labelledby="needs-title">
+          <div class="job-panel-head"><div><span class="job-eyebrow">Needs you</span><h2 id="needs-title">Decisions and approvals</h2></div><span class="needs-count">0</span></div>
+          <div class="needs-list"><p class="panel-empty">Nothing needs you right now.</p></div>
+        </section>
+        <section class="job-panel results-panel" aria-labelledby="results-title">
+          <div class="job-panel-head"><div><span class="job-eyebrow">Results shelf</span><h2 id="results-title">Completed work</h2></div><span class="results-count job-eyebrow">0 ready</span></div>
+          <div class="folders" role="list"></div>
+          <article class="result-detail" aria-live="polite">Completed work will leave a folder here.</article>
+        </section>
+      </div>
+    </section>
     <div class="office-bottom">
       <div class="keypad" role="group" aria-label="Six agent keys"></div>
       <form class="compose">
@@ -174,10 +232,20 @@
       const send = root.querySelector('.send-task');
       const detail = root.querySelector('.selection-detail');
       const room = root.querySelector('.office-room');
+      const jobHub = root.querySelector('.job-hub');
+      const boardList = root.querySelector('.job-list');
+      const boardHealth = root.querySelector('.board-health');
+      const needsList = root.querySelector('.needs-list');
+      const needsCount = root.querySelector('.needs-count');
+      const folders = root.querySelector('.folders');
+      const resultsCount = root.querySelector('.results-count');
+      const resultDetail = root.querySelector('.result-detail');
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
       const shared = document.createElement('div');
       shared.className='shared-space';
       shared.innerHTML='<span class="whiteboard">Whiteboard</span><span class="shared-label">TEAM<br>SPACE</span><span class="reference-shelf">References</span>';
+      const roomBoard=shared.querySelector('.whiteboard');
+      const roomShelf=shared.querySelector('.reference-shelf');
       const colors = [
         ['#dfa650','#f0b958','#a97430','#c18e3f'], ['#79afa2','#88c7b6','#4c8576','#58a28e'],
         ['#d7816d','#f09b83','#a35b4b','#c07761'], ['#a095c6','#b7ace3','#746691','#8e81bd'],
@@ -205,6 +273,7 @@
         a.robot.style.setProperty('--suit',`light-dark(${colors[i][0]},${colors[i][1]})`);
         a.robot.style.setProperty('--trim',`light-dark(${colors[i][2]},${colors[i][3]})`);
         const number=document.createElement('span'); number.className='traveler-number'; number.textContent=String(i+1); a.robot.append(number);
+        const clipboard=document.createElement('span'); clipboard.className='clipboard'; a.robot.append(clipboard);
         room.append(a.robot);
         if(i===2) deskArea.append(shared);
         const key = document.createElement('button'); key.type='button'; key.className='agent-key'; key.textContent=String(i+1);
@@ -214,14 +283,73 @@
       commsLayer.className='comms-layer'; commsLayer.setAttribute('aria-hidden','true'); room.append(commsLayer);
       const commsAnnouncement=document.createElement('span');
       commsAnnouncement.className='comms-announcement'; commsAnnouncement.setAttribute('aria-live','polite'); root.append(commsAnnouncement);
-      const seenCommunications=new Map();
-      const recentPairs=new Map();
-      let commsQueue=[],activeBubbles=[],commsTimer=null,commsFrame=null;
-      function clearCommunications() {
-        clearTimeout(commsTimer); cancelAnimationFrame(commsFrame);
-        commsTimer=null; commsFrame=null; commsQueue=[]; activeBubbles=[];
-        commsLayer.replaceChildren(); commsAnnouncement.textContent='';
+      // ROUNDS_CONTROLLER_START: DOM-independent queue, also exercised by focused tests.
+      function createOfficeRounds(hooks) {
+        const seen=new Map(),pairs=new Map();
+        let queue=[],running=false,generation=0,current=null;
+        const fresh=event=>hooks.now()-event.at<=45 && event.at-hooks.now()<=2;
+        async function drain() {
+          if(running) return;
+          running=true;
+          const turn=generation;
+          const alive=()=>turn===generation;
+          try {
+            while(alive() && queue.length) {
+              const event=queue.shift();
+              const people=hooks.resolve(event);
+              if(!fresh(event) || !people) continue;
+              const valid=()=>alive() && hooks.valid(event,people);
+              current={valid};
+              try {
+                // A failed route retains the existing stationary speech-bubble fallback.
+                try { await hooks.visit(event,people,valid); } catch(_error) { hooks.stopVisit(people); }
+                if(valid() && fresh(event)) await hooks.speak(event,people,valid);
+              } finally { hooks.release(people); current=null; }
+            }
+            if(alive()) await hooks.home(alive);
+          } catch(_error) {
+            // A removed/rebuilt scene must not leave characters held by a failed animation.
+            if(alive()) hooks.cancel();
+          } finally {
+            running=false;
+            if(queue.length) void drain();
+          }
+        }
+        return {
+          receive(events) {
+            const now=hooks.now();
+            for(const [id,at] of seen) if(now-at>50) seen.delete(id);
+            for(const [pair,at] of pairs) if(now-at>50) pairs.delete(pair);
+            for(const raw of Array.isArray(events)?events:[]) {
+              if(!raw || typeof raw.id!=='string' || typeof raw.from!=='string' ||
+                !['overview','check','message'].includes(raw.kind) || !Number.isFinite(raw.at) ||
+                !fresh(raw) || seen.has(raw.id) ||
+                (raw.kind!=='overview' && (typeof raw.to!=='string' || raw.to===raw.from))) continue;
+              // Only metadata crosses into animation; never retain prompt/result payloads.
+              const event={id:raw.id,from:raw.from,to:raw.kind==='overview'?null:raw.to,kind:raw.kind,at:raw.at};
+              seen.set(event.id,event.at);
+              const pair=JSON.stringify([event.from,event.to,event.kind]);
+              if(event.at-(pairs.get(pair)??-Infinity)<10) continue;
+              pairs.set(pair,event.at);
+              queue.push(event);
+            }
+            queue.sort((a,b)=>a.at-b.at);
+            queue=queue.slice(-12);
+            void drain();
+          },
+          sync() { if(current && !current.valid()) this.clear(); },
+          clear() { generation++; queue=[]; current=null; hooks.cancel(); }
+        };
       }
+      // ROUNDS_CONTROLLER_END
+      let activeBubbles=[],commsTimer=null,commsFrame=null,finishSpeech=null;
+      function clearBubbles() {
+        clearTimeout(commsTimer); cancelAnimationFrame(commsFrame);
+        commsTimer=null; commsFrame=null; activeBubbles=[];
+        commsLayer.replaceChildren(); commsAnnouncement.textContent='';
+        const finish=finishSpeech; finishSpeech=null; if(finish) finish();
+      }
+      function clearCommunications() { rounds.clear(); }
       function positionBubbles() {
         if(!root.isConnected || activeBubbles.some(item=>item.agent.threadId!==item.threadId)) {clearCommunications(); return;}
         const bounds=room.getBoundingClientRect();
@@ -243,17 +371,9 @@
         }
         if(activeBubbles.length) commsFrame=requestAnimationFrame(positionBubbles);
       }
-      function playCommunication() {
-        if(activeBubbles.length || !root.isConnected) return;
-        let event,manager,teammate;
-        while(commsQueue.length) {
-          event=commsQueue.shift();
-          manager=agents.find(agent=>agent.threadId===event.from);
-          teammate=agents.find(agent=>agent.threadId===event.to);
-          if(Date.now()/1000-event.at<=45 && manager && (event.kind==='overview' || teammate)) break;
-          event=null;
-        }
-        if(!event) return;
+      function playCommunication(event,{manager,teammate},valid) {
+        if(!valid()) return Promise.resolve();
+        const finished=new Promise(resolve=>{finishSpeech=resolve;});
         const labels={overview:['Checking team'],check:['Checking in','Status check'],message:['Following up','Message received']}[event.kind];
         const participants=event.kind==='overview'?[manager]:[manager,teammate];
         participants.forEach((agent,index)=>{
@@ -269,28 +389,125 @@
         positionBubbles();
         commsTimer=setTimeout(()=>{
           activeBubbles.forEach(item=>item.element.classList.add('is-leaving'));
-          commsTimer=setTimeout(()=>{
-            cancelAnimationFrame(commsFrame);commsFrame=null;activeBubbles=[];commsLayer.replaceChildren();
-            playCommunication();
-          },220);
+          commsTimer=setTimeout(clearBubbles,reducedMotion.matches?0:220);
         },event.kind==='overview'?2400:4200);
+        return finished;
       }
       function receiveCommunications(events) {
-        const now=Date.now()/1000;
-        for(const [id,at] of seenCommunications) if(now-at>50) seenCommunications.delete(id);
-        for(const [pair,at] of recentPairs) if(now-at>50) recentPairs.delete(pair);
-        for(const event of Array.isArray(events)?events:[]) {
-          if(!event || typeof event.id!=='string' || !['overview','check','message'].includes(event.kind) || !Number.isFinite(event.at) || now-event.at>45 || event.at-now>2 || seenCommunications.has(event.id)) continue;
-          seenCommunications.set(event.id,event.at);
-          const pair=`${event.from}:${event.to}:${event.kind}`;
-          if(event.at-(recentPairs.get(pair)??-Infinity)<10) continue;
-          recentPairs.set(pair,event.at);
-          commsQueue.push(event);
-        }
-        commsQueue=commsQueue.slice(-12);
-        playCommunication();
+        rounds.receive(events);
       }
       window.addEventListener('pagehide',clearCommunications,{once:true});
+      let selectedResultId=null,spotlightTimer=null;
+      function emptyState(container,text) {
+        const item=document.createElement('p'); item.className='panel-empty'; item.textContent=text;
+        container.replaceChildren(item);
+      }
+      function agentForKey(key) { return agents.find(agent=>agent.keyNumber===key); }
+      function selectKey(key) {
+        const index=agents.findIndex(agent=>agent.keyNumber===key);
+        if(index>=0) select(index);
+      }
+      function flashSpotlight(agent) {
+        clearTimeout(spotlightTimer);
+        agents.forEach(item=>item.station.classList.remove('is-spotlit'));
+        if(!agent) return;
+        // Restart the animation when the same key is pressed twice.
+        void agent.station.offsetWidth;
+        agent.station.classList.add('is-spotlit');
+        spotlightTimer=setTimeout(()=>agent.station.classList.remove('is-spotlit'),1200);
+      }
+      function renderJobBoard(board) {
+        // The rounds controller has a deliberately tiny DOM harness in tests;
+        // board rendering is optional in that isolated scene.
+        if(!jobHub) return;
+        if(!board || board.presentation) {
+          jobHub.hidden=Boolean(board?.presentation);
+          if(!board) {
+            boardHealth.textContent='Unavailable'; boardHealth.dataset.stale='true';
+            emptyState(boardList,'The live manager ledger is unavailable.');
+            emptyState(needsList,'No decision data is available.');
+            needsCount.textContent='0'; folders.replaceChildren();
+            resultsCount.textContent='0 ready'; resultDetail.textContent='No result data is available.';
+          }
+          return;
+        }
+        jobHub.hidden=false;
+        const source=board.source && typeof board.source==='object'?board.source:{};
+        const stale=source.stale!==false;
+        boardHealth.dataset.stale=String(stale);
+        boardHealth.textContent=!source.available?'Unavailable':stale?'May be stale':'Live';
+        const boardAgents=Array.isArray(board.agents)?board.agents:[];
+        const agentById=new Map(boardAgents.map(agent=>[agent.id,agent]));
+        boardList.replaceChildren();
+        const stageLabels={researching:'Researching',building:'Building',testing:'Testing',waiting:'Waiting',unknown:'Stage unknown'};
+        for(const item of boardAgents) {
+          const assignment=item.assignment && typeof item.assignment==='object'?item.assignment:null;
+          const stage=assignment?.stage || 'ready';
+          const row=document.createElement('button'); row.type='button'; row.className='job-row'; row.dataset.stage=stage;
+          const identity=document.createElement('span'); identity.className='job-agent';
+          identity.textContent=`${Number.isInteger(item.key)?item.key+' · ':''}${item.label || 'Agent'}`;
+          const title=document.createElement('span'); title.className='job-title';
+          title.textContent=assignment?.title || 'Ready for the next assignment';
+          const chip=document.createElement('span'); chip.className='stage-chip'; chip.textContent=stageLabels[stage] || 'Ready';
+          row.append(identity,title,chip);
+          if(Number.isInteger(item.key)) {
+            row.addEventListener('click',()=>selectKey(item.key));
+            row.setAttribute('aria-label',`${identity.textContent}: ${title.textContent}, ${chip.textContent}`);
+          } else {
+            row.disabled=true;
+          }
+          boardList.append(row);
+        }
+        if(!boardAgents.length) emptyState(boardList,'No configured agents are available.');
+
+        const needs=Array.isArray(board.needsYou)?board.needsYou:[];
+        needsCount.textContent=String(needs.length); needsList.replaceChildren();
+        for(const need of needs) {
+          const owner=agentById.get(need.agentId) || {};
+          const card=document.createElement('button'); card.type='button'; card.className='need-card';
+          const key=document.createElement('span'); key.className='need-key'; key.textContent=Number.isInteger(owner.key)?String(owner.key):'!';
+          const copy=document.createElement('span');
+          const heading=document.createElement('strong');
+          heading.textContent=`${owner.label || 'An agent'} needs you${Number.isInteger(owner.key)?' · press '+owner.key:''}`;
+          const action=document.createElement('small'); action.textContent=`${need.title || 'Your input is needed'}. ${need.action || 'Open the task to respond.'}`;
+          copy.append(heading,action); card.append(key,copy);
+          if(Number.isInteger(owner.key)) card.addEventListener('click',()=>selectKey(owner.key));
+          card.setAttribute('aria-label',`${heading.textContent}. ${action.textContent}`);
+          needsList.append(card);
+        }
+        if(!needs.length) emptyState(needsList,'Nothing needs you right now.');
+
+        const results=Array.isArray(board.results)?board.results:[];
+        resultsCount.textContent=`${results.length} ready`; folders.replaceChildren();
+        if(!results.some(result=>result.id===selectedResultId)) selectedResultId=results[0]?.id || null;
+        function showResult(id) {
+          selectedResultId=id;
+          const result=results.find(item=>item.id===id);
+          folders.querySelectorAll('.result-folder').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.resultId===id)));
+          resultDetail.replaceChildren();
+          if(!result) { resultDetail.textContent='Completed work will leave a folder here.'; return; }
+          const owner=agentById.get(result.agentId) || {};
+          const heading=document.createElement('strong'); heading.textContent=`${owner.label || 'Agent'} · ${result.title || 'Completed job'}`;
+          const summary=document.createElement('span'); summary.textContent=result.summary || 'Open the task to review the result.';
+          resultDetail.append(heading,summary);
+          const safeArtifacts=(Array.isArray(result.artifacts)?result.artifacts:[]).filter(artifact=>typeof artifact.href==='string' && /^https?:\/\//.test(artifact.href));
+          if(safeArtifacts.length) {
+            const links=document.createElement('span'); links.className='result-links';
+            safeArtifacts.forEach(artifact=>{const link=document.createElement('a');link.href=artifact.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent=artifact.label || 'Open result';links.append(link);});
+            resultDetail.append(links);
+          }
+        }
+        for(const result of results) {
+          const owner=agentById.get(result.agentId) || {};
+          const folder=document.createElement('button'); folder.type='button'; folder.className='result-folder'; folder.dataset.resultId=result.id;
+          folder.setAttribute('role','listitem'); folder.setAttribute('aria-selected',String(result.id===selectedResultId));
+          folder.textContent=`${owner.label || 'Agent'} · ${result.title || 'Result'}`;
+          folder.addEventListener('click',()=>showResult(result.id)); folders.append(folder);
+        }
+        showResult(selectedResultId);
+        roomBoard.textContent=`${boardAgents.filter(item=>item.assignment).length} active`;
+        roomShelf.textContent=`${results.length} result${results.length===1?'':'s'}`;
+      }
       function render() {
         agents.forEach((a,i) => {
           const stateLabel = {working:'Working',done:'Complete · unread',idle:'Idle',waiting:'Needs your input',unknown:'Status unavailable',error:'Error',unassigned:'No pinned task'}[a.state] || 'Status unavailable';
@@ -318,6 +535,17 @@
         const homeX=d.left-r.left+d.width/2-19;
         const homeY=d.top-r.top+72;
         const laneY=s.top-r.top+47+(a.index>=3?43:0);
+        if(location && typeof location==='object') {
+          const target=agents.find(agent=>agent.threadId===location.desk);
+          if(!target) return {x:homeX,y:homeY};
+          const desk=target.station.getBoundingClientRect(),home=spot(target,'home');
+          // Stand in the gap beside the colleague, above nameplates at narrow widths.
+          const side=target.index%3===2?-1:1;
+          const x=Math.max(4,Math.min(r.width-55,home.x+side*44));
+          const y=home.y+(desk.width<135?0:12);
+          if(location.aisle) return {x,y:spot(target,'corridor').y};
+          return {x,y};
+        }
         if(location==='home') return {x:homeX,y:homeY};
         if(location==='corridor') return {x:homeX,y:laneY};
         if(location==='board') return {x:s.left-r.left+8+(a.index%3)*38,y:laneY};
@@ -326,7 +554,7 @@
       }
       function position(a,p,duration=0) {
         a.position=p;
-        a.robot.style.setProperty('--walk-duration',`${duration}ms`);
+        a.robot.style.setProperty('--walk-duration',`${reducedMotion.matches?0:duration}ms`);
         a.robot.style.transform=`translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`;
       }
       const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -340,12 +568,91 @@
         if(!root.isConnected || a.runId!==runId) return;
         a.moving=false; a.robot.dataset.walking='false';
       }
+      let roundManager=null;
+      function freeze(a) {
+        const bounds=room.getBoundingClientRect(),robot=a.robot.getBoundingClientRect();
+        a.runId++; a.moving=false; a.robot.dataset.walking='false';
+        position(a,{x:robot.left-bounds.left,y:robot.top-bounds.top});
+      }
+      function hold(a) {
+        if(a.roundHold) return;
+        freeze(a); a.roundHold={threadId:a.threadId};
+      }
+      function release(a) {
+        if(!a || !a.roundHold) return;
+        a.roundHold=null; a.robot.dataset.rounds='false';
+        a.runId++; a.moving=false; a.robot.dataset.walking='false'; a.location='home';
+        if(root.isConnected && a.state==='working') void work(a);
+        else position(a,spot(a,'home'),reducedMotion.matches?0:250);
+      }
+      function roundValid(event,{manager,teammate}) {
+        return root.isConnected && manager.threadId===event.from &&
+          (event.kind==='overview' || teammate.threadId===event.to);
+      }
+      async function roundRoute(a,locations,valid) {
+        const runId=a.runId;
+        for(const location of locations) {
+          if(!valid() || a.runId!==runId || reducedMotion.matches) return;
+          await walk(a,location,appearance.pace==='Quick'?0.65:1);
+        }
+      }
+      const rounds=createOfficeRounds({
+        now:()=>Date.now()/1000,
+        resolve(event) {
+          const manager=agents.find(a=>a.threadId===event.from);
+          const teammate=agents.find(a=>a.threadId===event.to);
+          return manager && (event.kind==='overview' || teammate)?{manager,teammate}:null;
+        },
+        valid:roundValid,
+        async visit(event,people,valid) {
+          const {manager,teammate}=people;
+          if(roundManager && roundManager!==manager) release(roundManager);
+          roundManager=manager; hold(manager); manager.robot.dataset.rounds='true';
+          if(event.kind==='overview' || reducedMotion.matches) return;
+          // If input is needed, preserve the stationary communication fallback.
+          if(['waiting','error','unknown','unassigned'].includes(manager.state)) return;
+          hold(teammate);
+          const destination={desk:event.to};
+          const home=spot(teammate,'home');
+          const colleagueRoute=Math.hypot(teammate.position.x-home.x,teammate.position.y-home.y)<2?[]:['corridor','home'];
+          // Travel via the shared aisle, then pause with the colleague at their desk.
+          const managerRoute=[manager.location?.desk?{desk:manager.location.desk,aisle:true}:'corridor',
+            {desk:event.to,aisle:true},destination];
+          await Promise.all([
+            roundRoute(manager,managerRoute,valid),
+            roundRoute(teammate,colleagueRoute,valid)
+          ]);
+        },
+        stopVisit({manager,teammate}) {
+          for(const a of [manager,teammate]) if(a?.roundHold) freeze(a);
+        },
+        speak:playCommunication,
+        release({teammate}) { release(teammate); },
+        async home(alive) {
+          const manager=roundManager;
+          if(!manager) return;
+          const identity=manager.threadId;
+          const valid=()=>alive() && root.isConnected && manager.threadId===identity;
+          try {
+            if(manager.location?.desk) await roundRoute(manager,[{desk:manager.location.desk,aisle:true},'corridor','home'],valid);
+          } finally {
+            if(roundManager===manager) {roundManager=null; release(manager);}
+          }
+        },
+        cancel() {
+          clearBubbles(); roundManager=null;
+          agents.forEach(a=>{if(a.roundHold) {freeze(a);release(a);}});
+        }
+      });
+      reducedMotion.addEventListener('change',()=>{
+        if(reducedMotion.matches) clearCommunications();
+      });
       function reflow() {
-        agents.forEach(a=>{if(!a.moving) position(a,spot(a,a.location));});
+        agents.forEach(a=>{if(!a.moving && (!a.roundHold || a.location?.desk)) position(a,spot(a,a.location));});
       }
       async function work(a) {
         const runId=a.runId;
-        const valid=()=>root.isConnected && a.state==='working' && a.runId===runId;
+        const valid=()=>root.isConnected && a.state==='working' && a.runId===runId && !a.roundHold;
         const pace=appearance.pace==='Quick'?0.65:1;
         const route=[
           ['corridor','Heading to the whiteboard…',0],
@@ -366,11 +673,12 @@
         a.state='done'; a.stage='Complete · example result ready'; render();
       }
       function select(i) {
+        if(!Number.isInteger(i) || i<0 || i>=agents.length) return;
         if(!liveMode) agents[selected].task=input.value;
         selected=i;
         const a=agents[i];
         if (!liveMode && a.state==='done') { a.state='idle'; a.stage='Result reviewed · ready'; }
-        input.value=a.task; render();
+        input.value=a.task; render(); flashSpotlight(a);
       }
       input.addEventListener('input',()=>{ agents[selected].task=input.value; send.disabled=!input.value.trim(); });
       root.querySelector('form').addEventListener('submit',event=>{
@@ -387,6 +695,7 @@
         applySnapshot(snapshot) {
           liveMode=true;
           input.hidden=true; send.hidden=true;
+          renderJobBoard(snapshot && snapshot.jobBoard);
           const tag=root.querySelector('.office-tag');
           const items=snapshot.connected && Array.isArray(snapshot.slots)?snapshot.slots:null;
           tag.textContent=items?'Live · local task activity':'Disconnected · activity unavailable';
@@ -395,21 +704,25 @@
             agents.forEach(a=>{a.runId++;a.state=a.threadId?'unknown':'unassigned';a.moving=false;a.location='home';a.robot.hidden=!a.threadId;a.robot.dataset.walking='false';position(a,spot(a,'home'));});
             render(); return;
           }
+          if(items.some(item=>agents[item.avatar]?.roundHold && agents[item.avatar].threadId!==item.id)) clearCommunications();
           for(const item of items) {
             const a=agents[item.avatar];
             if(!a || !Number.isInteger(item.key) || item.key<1 || item.key>6) continue;
             const previous=a.state; const changed=a.threadId!==item.id;
-            if(changed || previous!==item.state) a.runId++;
+            if(changed || (previous!==item.state && !a.roundHold)) a.runId++;
             a.threadId=item.id; a.keyNumber=item.key; a.task=item.title; a.state=item.state;
             a.displayTitle=item.id?String(item.title):'Unassigned';
             Object.assign(a,splitPinnedName(a.displayTitle));
             a.key.textContent=String(item.key); keyArea.append(a.key);
             a.robot.querySelector('.traveler-number').textContent=String(item.key);
             a.robot.hidden=!item.id;
-            if(a.state==='working' && (changed || previous!=='working')) work(a);
-            else if(a.state!=='working') {a.moving=false;a.location='home';a.robot.dataset.walking='false';position(a,spot(a,'home'),250);}
+            if(!a.roundHold) {
+              if(a.state==='working' && (changed || previous!=='working')) work(a);
+              else if(a.state!=='working') {a.moving=false;a.location='home';a.robot.dataset.walking='false';position(a,spot(a,'home'),250);}
+            }
           }
           render();
+          rounds.sync();
           receiveCommunications(snapshot.communications);
         }
       };

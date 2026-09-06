@@ -22,6 +22,17 @@ typedef void (^ControllerCompletion)(BOOL success, NSString *output);
     return [[self runtimeURL] URLByAppendingPathComponent:@"desktop/agent_office_ctl.py"];
 }
 
+- (NSInteger)backendPort {
+    NSNumber *configured = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"AgentOfficeBackendPort"];
+    NSInteger port = configured.integerValue;
+    return port > 0 && port <= 65535 ? port : 4318;
+}
+
+- (NSString *)publicHost {
+    id configured = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"AgentOfficePublicHost"];
+    return [configured isKindOfClass:[NSString class]] ? configured : @"";
+}
+
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
     (void)notification;
     [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
@@ -73,7 +84,14 @@ typedef void (^ControllerCompletion)(BOOL success, NSString *output);
         NSTask *task = [[NSTask alloc] init];
         NSPipe *pipe = [NSPipe pipe];
         task.executableURL = [NSURL fileURLWithPath:@"/usr/bin/python3"];
-        task.arguments = [@ [controller, @"--root", root] arrayByAddingObjectsFromArray:arguments];
+        NSMutableArray<NSString *> *configured = [NSMutableArray arrayWithArray:@[
+            controller, @"--root", root, @"--port", [NSString stringWithFormat:@"%ld", (long)[self backendPort]]
+        ]];
+        if (self.publicHost.length > 0) {
+            [configured addObjectsFromArray:@[@"--public-host", self.publicHost]];
+        }
+        [configured addObjectsFromArray:arguments];
+        task.arguments = configured;
         task.standardOutput = pipe;
         task.standardError = pipe;
         BOOL launched = NO;
@@ -136,7 +154,8 @@ typedef void (^ControllerCompletion)(BOOL success, NSString *output);
         if (!success) return;
         [self makeWindowIfNeeded];
         NSString *path = presentation ? @"/presentation" : @"/";
-        NSURL *url = [NSURL URLWithString:[@"http://127.0.0.1:4318" stringByAppendingString:path]];
+        NSString *base = [NSString stringWithFormat:@"http://127.0.0.1:%ld", (long)[self backendPort]];
+        NSURL *url = [NSURL URLWithString:[base stringByAppendingString:path]];
         // Do not leave a previously loaded private office visible while the
         // presentation route is loading or entering full screen.
         self.webView.hidden = YES;

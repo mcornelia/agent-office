@@ -27,6 +27,8 @@ Give the task the full local path if the repository is outside its current worki
 
 The schedule runs inside your existing manager task. It may wake while the team is idle to discover new assignments; idle checks should stay quiet. Local checks need the Mac and Codex running. The repository does not contain an installed schedule, and cloning it does not change any of your automations.
 
+The live whiteboard and result panels remain generic until the manager writes explicitly safe `presentation` labels and summaries into the private ledger. The generated brief explains this boundary and the supported work stages. Edit `manager/team.json` to add a safe `presentation.label` for each agent if you want names on the board; raw task titles, objectives, evidence, and local paths are never copied automatically.
+
 ## What the manager does
 
 - Reads current progress using native task tools.

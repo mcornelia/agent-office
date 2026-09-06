@@ -23,7 +23,15 @@ xcrun clang -fobjc-arc -fmodules-cache-path="$build_dir/ModuleCache" -mmacosx-ve
   -o "$contents/MacOS/Agent Office" \
   -framework Cocoa -framework WebKit
 cp "$desktop_dir/Info.plist" "$contents/Info.plist"
-cp "$repo_root/server.py" "$repo_root/desktop_status.py" "$repo_root/communications.py" "$repo_root/index.html" "$runtime/"
+backend_port=${AGENT_OFFICE_BACKEND_PORT:-4318}
+public_host=${AGENT_OFFICE_PUBLIC_HOST:-}
+if [[ $backend_port != <1-65535> ]]; then
+  print -u2 "AGENT_OFFICE_BACKEND_PORT must be an integer from 1 to 65535."
+  exit 2
+fi
+/usr/bin/plutil -replace AgentOfficeBackendPort -integer "$backend_port" "$contents/Info.plist"
+/usr/bin/plutil -replace AgentOfficePublicHost -string "$public_host" "$contents/Info.plist"
+cp "$repo_root/server.py" "$repo_root/desktop_status.py" "$repo_root/communications.py" "$repo_root/job_board.py" "$repo_root/index.html" "$runtime/"
 cp "$desktop_dir/agent_office_ctl.py" "$runtime/desktop/"
 /usr/bin/printf '%s\n' "$repo_root" > "$runtime/source-root.txt"
 chmod 755 "$contents/MacOS/Agent Office" "$runtime/server.py" "$runtime/desktop/agent_office_ctl.py"

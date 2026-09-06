@@ -114,6 +114,32 @@ class OfficeTests(unittest.TestCase):
             f.write(json.dumps({'type':'response_item','payload':{'text':'PRIVATE TEST TRANSCRIPT'}}).encode()+b'\n')
         self.assertNotIn('PRIVATE TEST TRANSCRIPT',json.dumps(OfficeState(self.root).snapshot()))
 
+    def test_job_board_is_wired_and_presentation_route_omits_its_copy(self):
+        self.add_task('one', 100, 'task_complete')
+        roster = self.root / 'team.json'
+        roster.write_text(json.dumps({
+            'schemaVersion': 1,
+            'managerThreadId': 'one',
+            'members': [{'threadId': 'one', 'hostId': 'local',
+                         'presentation': {'label': 'Scout'}}],
+        }))
+        (self.root / 'state.json').write_text(json.dumps({
+            'schemaVersion': 1,
+            'lastCheckAt': time.time(),
+            'jobs': [{
+                'taskId': 'one', 'sourceTurnId': 'safe-job',
+                'lastObservedStatus': 'completed', 'completedAt': time.time(),
+                'presentation': {'title': 'Safe result', 'summary': 'Safe summary'},
+            }],
+        }))
+        snapshot = OfficeState(self.root, roster_path=roster).snapshot()
+        self.assertEqual(snapshot['jobBoard']['agents'][0]['label'], 'Scout')
+        self.assertEqual(snapshot['jobBoard']['results'][0]['title'], 'Safe result')
+        public = presentation_snapshot(snapshot)
+        self.assertEqual(public['jobBoard']['agents'], [])
+        self.assertEqual(public['jobBoard']['results'], [])
+        self.assertNotIn('Safe result', json.dumps(public))
+
     def test_presentation_snapshot_never_returns_private_assignments(self):
         private = {
             'connected': True,

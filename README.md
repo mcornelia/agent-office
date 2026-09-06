@@ -2,7 +2,7 @@
 
 **A live office for your Codex agents.**
 
-Six pinned tasks become six characters with their own desks, nameplates, and activity colors. Working agents walk between their desks, the whiteboard, and the reference shelf. When a task needs your input or approval, its monitor, illustrated key, and character badge turn amber.
+Six pinned tasks become six characters with their own desks, nameplates, and activity colors. A live whiteboard shows each manager-tracked assignment and its explicit stage, the **Needs you** tray holds decisions until they are resolved, and the results shelf keeps completed work handy. Working agents walk between their desks, the whiteboard, and the reference shelf. When a task needs your input or approval, its monitor, illustrated key, and character badge turn amber.
 
 Agent Office is a local companion for the Codex desktop app on macOS. It pairs with the Creator Micro 2's built-in **Pinned chats** mapping and also works while you select tasks normally in Codex.
 
@@ -23,6 +23,8 @@ Open **http://127.0.0.1:4318/** in your browser. Pin up to six local tasks in Co
 On macOS, you can also double-click **Start Agent Office.command**. Stop the server with Control-C in its terminal.
 
 For a native menu-bar home with a private fullscreen presentation view, see [desktop/README.md](desktop/README.md). The desktop prototype detects and reuses a running server, prevents duplicate launcher starts, and keeps Start at Login opt-in and reversible.
+
+To expose the office securely to devices on a trusted local network through Caddy, see [LAN HTTPS deployment](docs/lan-https.md). The Python backend remains loopback-only; the proxy is the only LAN-facing listener.
 
 For a different local Codex directory or port:
 
@@ -63,7 +65,9 @@ Movement illustrates activity; a walk to the whiteboard does not mean a particul
 3. Keep Codex focused, press an agent's physical key, and give that task work.
 4. Watch its character and activity colors update in the office.
 
-The office's on-screen keys select a character for inspection. Task selection, prompting, and physical keyboard LEDs remain controlled by Codex. Native key selection is not mirrored into the office selection highlight.
+The office's on-screen keys—or number keys while the page is focused—select and briefly spotlight a character for inspection. Task selection, prompting, and physical keyboard LEDs remain controlled by Codex.
+
+The included [keyboard signal prototype](docs/keyboard-selection.md) confirms the Creator Micro's six key-to-slot mapping, but the current Codex desktop app does not export a reliable external **selected task changed** event. A raw key press can be consumed by another Codex control without changing tasks, so Agent Office deliberately does not claim a physical-key spotlight yet. Shipping the truthful disabled state prevents the office from highlighting the wrong agent.
 
 ## Give the office a manager
 
@@ -71,7 +75,7 @@ The optional manager workflow lets an existing task inspect teammates, coordinat
 
 See [manager setup](manager/README.md). Installing or running the viewer does not send prompts or create automations. Manager setup requires an explicit instruction in your chosen Codex task.
 
-When the configured manager checks the team, animated speech bubbles appear above the manager and the teammate being checked. Follow-up messages have their own labels. The bubbles follow the characters as they move, stagger batched checks, and fade away. Only generic activity labels are displayed; actual conversation text stays private. These are recent observed checks and sends, not generated dialogue.
+When the configured manager checks the team, Scout carries a clipboard and walks to that teammate's desk before the animated speech bubbles appear. Follow-up messages have their own labels. Real check-ins queue one at a time, skip expired events, and return both characters to normal activity without exposing message text. Reduced-motion mode keeps the same information stationary.
 
 ## Local data and compatibility
 
@@ -95,6 +99,7 @@ python3 build_view.py
 
 # Run the activity, status, and message-reader checks.
 python3 -m unittest -v test_server.py test_desktop_status.py test_communications.py
+python3 -m unittest -v test_job_board.py
 python3 -m unittest -v desktop/test_agent_office_ctl.py
 python3 -m unittest discover -s manager -p 'test_*.py' -v
 
@@ -110,6 +115,7 @@ python3 server.py --check
 | `server.py` | Read-only local HTTP server and activity mapping |
 | `desktop_status.py` | Local desktop status subscription |
 | `communications.py` | Recent manager check and message metadata |
+| `job_board.py` | Privacy-filtered manager job, decision, and result projection |
 | `manager/` | Optional coordination brief, configuration, and context reader |
 
 The standalone `office.html` scene has an example activity preview for interface development. `index.html` always connects to the local activity source.

@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
-LABEL = "com.mcornelia.agent-office"
+LABEL = "com.mcornelia.agent-office.launcher"
 DEFAULT_PORT = 4318
 
 
@@ -122,7 +122,8 @@ def _source_roster(root):
     return roster if roster.is_file() else None
 
 
-def ensure_server(root, support_dir, codex_dir, port=DEFAULT_PORT, python="/usr/bin/python3", timeout=6.0):
+def ensure_server(root, support_dir, codex_dir, port=DEFAULT_PORT, python="/usr/bin/python3",
+                  timeout=6.0, public_hosts=()):
     root = Path(root).expanduser().resolve()
     server = root / "server.py"
     if not server.is_file():
@@ -150,6 +151,8 @@ def ensure_server(root, support_dir, codex_dir, port=DEFAULT_PORT, python="/usr/
         roster = _source_roster(root)
         if roster:
             command.extend(["--roster-path", str(roster)])
+        for host in public_hosts:
+            command.extend(["--public-host", host])
         try:
             log = paths["log"].open("ab", buffering=0)
             paths["log"].chmod(0o600)
@@ -279,6 +282,8 @@ def build_parser():
     parser.add_argument("--codex-dir", type=Path, default=Path.home() / ".codex")
     parser.add_argument("--launch-agents-dir", type=Path, default=Path.home() / "Library" / "LaunchAgents")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
+    parser.add_argument("--public-host", action="append", default=[],
+                        help="Exact HTTPS proxy Host accepted by the loopback server")
     parser.add_argument("--python", default="/usr/bin/python3")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("start")
@@ -298,7 +303,8 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
     try:
         if args.command == "start":
-            result = ensure_server(args.root, args.support_dir, args.codex_dir, args.port, args.python)
+            result = ensure_server(args.root, args.support_dir, args.codex_dir, args.port,
+                                   args.python, public_hosts=args.public_host)
         elif args.command == "status":
             result = status(args.support_dir, args.port)
         elif args.command == "stop":

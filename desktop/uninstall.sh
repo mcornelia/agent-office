@@ -14,7 +14,7 @@ if [[ -f "$controller" ]]; then
   /usr/bin/python3 "$controller" disable-login
   /usr/bin/python3 "$controller" stop || true
 else
-  login_item="$HOME/Library/LaunchAgents/com.mcornelia.agent-office.plist"
+  login_item="$HOME/Library/LaunchAgents/com.mcornelia.agent-office.launcher.plist"
   if [[ -e "$login_item" ]]; then
     print -u2 "App controller is unavailable; remove this login item manually: $login_item"
     exit 1

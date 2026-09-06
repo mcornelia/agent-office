@@ -18,6 +18,26 @@ On the first check, record a baseline in `state.json` beside this file. Inspect 
 
 Keep a small ledger with each registered job's task ID, objective, source turn or timestamp, last observed status, cursor where available, next step, blocker, last follow-up signature, and last reported signature. Store concise evidence and links rather than full transcripts. Read the ledger before each check. Update it without overwriting newer state from another run.
 
+The office's whiteboard, **Needs you** tray, and results shelf read this ledger through a privacy-filtered adapter. Keep `lastObservedStatus` explicit when the worker's public update establishes a real phase: `researching`, `building`, `testing`, `waiting`, `awaiting_user_review`, `awaiting_user_input`, `awaiting_approval`, `completed`, or `blocked`. Use `unknown` when the phase is not established; do not infer it from an animation, task title, silence, or elapsed time.
+
+For useful office copy, add an optional `presentation` object to a job only when you can author a separate, non-sensitive summary:
+
+```json
+{
+  "presentation": {
+    "title": "Office whiteboard",
+    "needTitle": "Choose the layout",
+    "action": "Open this task and choose compact or expanded.",
+    "summary": "The tested whiteboard update is ready.",
+    "artifacts": [
+      {"label": "Review the published result", "url": "https://example.com/result", "public": true}
+    ]
+  }
+}
+```
+
+These fields are a deliberate display boundary. Never paste objective, blocker, evidence, transcript text, credentials, personal data, internal IDs, private URLs, or local paths into them. Omit a field when safe wording is not clear; the viewer will show a generic label. Add `presentation: {"label": "Safe agent name"}` to a member in private `team.json` only when that label is appropriate for the office display. The viewer never resolves a request or approves work; update the underlying job evidence when the user acts.
+
 ## Each office check
 
 1. Inspect the five workers, then inspect details only for new activity or registered unfinished jobs. When no jobs are active or eligible to advance, finish quietly. The timer may still wake you every 10 minutes so newly assigned jobs can be discovered.

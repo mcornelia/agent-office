@@ -44,6 +44,14 @@ class DesktopControllerTests(unittest.TestCase):
         self.assertEqual(ctl.service_url(4318), 'http://127.0.0.1:4318/')
         self.assertEqual(ctl.service_url(4318, True), 'http://127.0.0.1:4318/presentation')
 
+    def test_launcher_identity_and_public_host_option_are_explicit(self):
+        self.assertEqual(ctl.LABEL, 'com.mcornelia.agent-office.launcher')
+        args = ctl.build_parser().parse_args([
+            '--port', '4319', '--public-host', 'glyph.local:4318', 'start'
+        ])
+        self.assertEqual(args.port, 4319)
+        self.assertEqual(args.public_host, ['glyph.local:4318'])
+
     def test_healthy_existing_server_is_reused_without_launching(self):
         runtime = self.root / 'runtime'
         runtime.mkdir()
