@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent Office job board presentation snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "observedAt", "source", "agents", "needsYou", "results"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "observedAt": {"type": "string", "format": "date-time"},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["available", "stale", "updatedAt", "issues"],
+      "properties": {
+        "available": {"type": "boolean"}, "stale": {"type": "boolean"},
+        "updatedAt": {"$ref": "#/$defs/nullableTime"},
+        "issues": {"type": "array", "uniqueItems": true, "items": {"enum": ["roster_unavailable", "ledger_unavailable"]}}
+      }
+    },
+    "agents": {"type": "array", "maxItems": 6, "items": {"$ref": "#/$defs/agent"}},
+    "needsYou": {"type": "array", "items": {"$ref": "#/$defs/need"}},
+    "results": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/result"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^(agent|job|need|result|artifact)-[0-9a-f]{24}$"},
+    "nullableTime": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "agent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "key", "avatar", "label", "role", "assignment", "needsYouIds", "resultIds"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "key": {"enum": [1, 2, 3, 4, 5, 6, null]},
+        "avatar": {"enum": [0, 1, 2, 3, 4, 5, null]}, "label": {"type": "string", "maxLength": 60},
+        "role": {"enum": ["manager", "worker"]},
+        "assignment": {"anyOf": [{"$ref": "#/$defs/assignment"}, {"type": "null"}]},
+        "needsYouIds": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "resultIds": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "assignment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "title", "status", "stage", "stale", "updatedAt"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "title": {"type": "string", "maxLength": 160},
+        "status": {"enum": ["active", "waiting", "error", "unknown"]},
+        "stage": {"enum": ["researching", "building", "testing", "waiting", "unknown"]},
+        "stale": {"type": "boolean"}, "updatedAt": {"$ref": "#/$defs/nullableTime"}
+      }
+    },
+    "need": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "agentId", "jobId", "kind", "title", "action", "firstObservedAt", "stale", "sources"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "agentId": {"$ref": "#/$defs/id"},
+        "jobId": {"anyOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+        "kind": {"enum": ["approval", "input", "blocker"]},
+        "title": {"type": "string", "maxLength": 120}, "action": {"type": "string", "maxLength": 240},
+        "firstObservedAt": {"type": "string", "format": "date-time"}, "stale": {"type": "boolean"},
+        "sources": {"type": "array", "minItems": 1, "uniqueItems": true,
+                    "items": {"enum": ["manager_ledger", "desktop_status"]}}
+      }
+    },
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "agentId", "jobId", "title", "summary", "completedAt", "stale", "artifacts"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "agentId": {"$ref": "#/$defs/id"}, "jobId": {"$ref": "#/$defs/id"},
+        "title": {"type": "string", "maxLength": 160}, "summary": {"type": "string", "maxLength": 280},
+        "completedAt": {"$ref": "#/$defs/nullableTime"}, "stale": {"type": "boolean"},
+        "artifacts": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/artifact"}}
+      }
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "label", "kind", "href", "status"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"}, "label": {"type": "string", "maxLength": 80},
+        "kind": {"enum": ["external", "local"]}, "href": {"type": ["string", "null"]},
+        "status": {"enum": ["available", "missing", "unsafe", "hidden", "unverified"]}
+      }
+    }
+  }
+}
