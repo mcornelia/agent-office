@@ -73,6 +73,8 @@ AGENT_OFFICE_BACKEND_PORT=4319 AGENT_OFFICE_PUBLIC_HOST=glyph.local:4318 ./deskt
 
 See [LAN HTTPS deployment](../docs/lan-https.md). Start at Login remains off unless you add `--enable-login` or toggle it in the menu.
 
+If the repository or manager ledger is in Dropbox, iCloud Drive, or another macOS File Provider path, prefer this desktop-launcher method. A bare Python LaunchAgent can be denied access to those paths even though the interactive app works normally; the LAN guide explains the safe alternatives.
+
 ## Uninstall later
 
 ```sh
