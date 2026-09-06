@@ -119,3 +119,9 @@ python3 server.py --check
 The standalone `office.html` scene has an example activity preview for interface development. `index.html` always connects to the local activity source.
 
 When reporting a compatibility issue, include your macOS, Python, and Codex versions and the visible symptom. Remove personal task names, IDs, paths, and conversation content from any shared diagnostic output.
+
+## License
+
+Agent Office's original source code and documentation are licensed under the
+[MIT License](LICENSE). This does not license Codex, macOS, Creator Micro hardware
+or firmware, third-party trademarks, or private data displayed by the office.

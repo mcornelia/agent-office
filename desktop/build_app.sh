@@ -23,6 +23,7 @@ xcrun clang -fobjc-arc -fmodules-cache-path="$build_dir/ModuleCache" -mmacosx-ve
   -o "$contents/MacOS/Agent Office" \
   -framework Cocoa -framework WebKit
 cp "$desktop_dir/Info.plist" "$contents/Info.plist"
+cp "$repo_root/LICENSE" "$contents/Resources/LICENSE"
 backend_port=${AGENT_OFFICE_BACKEND_PORT:-4318}
 public_host=${AGENT_OFFICE_PUBLIC_HOST:-}
 if [[ $backend_port != <1-65535> ]]; then
