@@ -237,8 +237,6 @@ class OfficeState:
                             state = 'error'
                         elif runtime['type'] == 'idle':
                             state = 'done' if row['id'] in unread else 'idle'
-                    elif self.desktop_status and state == 'working':
-                        state = 'unknown'
                     slots.append({"key": i+1, "id": row["id"], "title": row["title"], "avatar": assigned[row["id"]], "state": state, "eventAt": event_at, "approvalStateAvailable": runtime is not None})
                 for i in range(len(rows), 6):
                     avatar = next(n for n in range(6) if n not in used)

@@ -10,6 +10,14 @@ const create = vm.runInNewContext(`(() => { ${source.slice(source.indexOf('\n'))
 const flush = async () => { for(let i=0;i<15;i++) await Promise.resolve(); };
 const deferred = () => {let resolve; const promise=new Promise(r=>resolve=r); return {promise,resolve};};
 const event = (id, to='worker', at=1000, kind='check') => ({id,from:'manager',to,at,kind});
+test('office desks mirror the Creator Micro agent-key layout',()=>{
+  assert.match(html,/grid-template-areas:'whiteboard key1 key2 coffee' 'key3 key4 key5 key6'/);
+  assert.match(html,/row-gap:64px/);
+  assert.match(html,/station\.style\.gridArea=`key\$\{i\+1\}`/);
+  assert.match(html,/Office whiteboard/);
+  assert.match(html,/No coffee, no workee/);
+  assert.match(html,/\['corridor','Heading to the whiteboard…',0\],[\s\S]*\['board-corridor','Heading to the whiteboard…',0\],[\s\S]*\['board','Thinking at the whiteboard…',1600\],[\s\S]*\['board-corridor','Coffee break…',0\],[\s\S]*\['coffee-corridor','Coffee break…',0\],[\s\S]*\['coffee','Coffee fuels the next step…',1200\],[\s\S]*\['coffee-corridor','Back to the desk…',0\],[\s\S]*\['corridor','Back to the desk…',0\]/);
+});
 function harness() {
   const h={now:1000,connected:true,ids:new Set(['manager','worker','other']),log:[],pending:[],fail:false,reduced:false};
   const gate=(kind,e)=>{const d=deferred();h.log.push([kind,e?.id]);h.pending.push(d);return d.promise;};
@@ -94,9 +102,10 @@ function office({reduced=false}={}) {
     addEventListener(){}
     querySelector(selector){const match=e=>selector.startsWith('.')?e.className.split(' ').includes(selector.slice(1)):e.tag===selector;for(const child of this.children){if(match(child))return child;const nested=child.querySelector(selector);if(nested)return nested;}return null;}
     set innerHTML(value){this.children=[];for(const match of value.matchAll(/<(\w+)[^>]*class="([^"]+)"/g))this.append(new Element(match[1],match[2]));}
-    getBoundingClientRect(){let left=0,top=0,width=840,height=780;
-      if(this.className==='station'){const i=stations().indexOf(this);left=20+i%3*270;top=84+(i>=3?400:0);width=260;height=222;}
-      else if(this.className==='shared-space'){left=27;top=318;width=786;height=164;}
+    getBoundingClientRect(){let left=0,top=0,width=840,height=560;
+      if(this.className==='station'){const i=stations().indexOf(this),slot=[[1,0],[2,0],[0,1],[1,1],[2,1],[3,1]][i];left=20+slot[0]*200;top=84+slot[1]*286;width=190;height=222;}
+      else if(this.className.split(' ').includes('office-whiteboard')){left=20;top=84;width=190;height=222;}
+      else if(this.className.split(' ').includes('coffee-space')){left=620;top=84;width=190;height=222;}
       else if(this.className.split(' ').includes('robot')){const m=(this.style.transform||'').match(/translate\(([-\d]+)px,([-\d]+)px\)/);if(m){left=+m[1];top=+m[2];}width=38;height=48;}
       return {left,top,width,height,right:left+width,bottom:top+height};}
   }

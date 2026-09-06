@@ -40,7 +40,7 @@
     #agent-office .window-view { position:relative; width:26%; height:46px; border:5px solid var(--office-panel); background:linear-gradient(160deg,light-dark(#c9dee0,#466572) 0 67%,light-dark(#95ac8e,#344b37) 68%); box-shadow:2px 3px 0 var(--office-shadow); }
     #agent-office .window-view:after { content:""; position:absolute; left:48%; width:4px; height:100%; background:var(--office-panel); }
     #agent-office .wall-sign { text-align:center; color:var(--office-muted); letter-spacing:.18em; font-size:11px; padding:0 10px; }
-    #agent-office .office-desks { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); column-gap:10px; row-gap:12px; }
+    #agent-office .office-desks { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-areas:'whiteboard key1 key2 coffee' 'key3 key4 key5 key6'; column-gap:10px; row-gap:64px; }
     #agent-office .station { position:relative; min-height:222px; min-width:0; border:0; padding:0 0 6px; background:transparent; color:inherit; font:inherit; cursor:pointer; border-radius:10px; display:flex; flex-direction:column; }
     #agent-office .station[aria-pressed="true"] { background:light-dark(#ffffff42,#ffffff08); }
     #agent-office .station-label { position:relative; margin-top:145px; width:100%; padding:0 4px; text-align:center; font-size:12px; white-space:normal; display:flex; flex-direction:column; align-items:center; gap:6px; }
@@ -155,12 +155,31 @@
     #agent-office .result-links { display:flex; flex-wrap:wrap; gap:8px; margin-top:7px; }
     #agent-office .result-links a { color:light-dark(#075aa8,#83bdff); font-weight:700; }
     @media(max-width:720px) { #agent-office .job-hub { grid-template-columns:1fr; } }
-    @media(max-width:490px) { #agent-office .office-header { padding:14px; gap:5px; } #agent-office .office-room { padding-left:6px; padding-right:6px; } #agent-office .back-wall { margin-left:-6px; margin-right:-6px; } #agent-office .office-desks { column-gap:0; } #agent-office .worktable { width:88px; } #agent-office .mug { left:calc(50% + 29px); } #agent-office .station[data-state="working"] .robot { transform:translate(41px,-39px); } #agent-office .office-bottom { grid-template-columns:1fr; padding:16px; gap:16px; } #agent-office .agent-key { min-height:44px; } #agent-office .task-input { font-size:16px; } #agent-office .office-legend { padding-left:16px; padding-right:16px; gap:10px; } }
+    @media(max-width:490px) { #agent-office .office-header { padding:14px; gap:5px; } #agent-office .office-room { padding-left:4px; padding-right:4px; } #agent-office .back-wall { margin-left:-4px; margin-right:-4px; } #agent-office .office-desks { column-gap:0; } #agent-office .station,#agent-office .office-amenity { min-height:205px; } #agent-office .worktable { width:76px; } #agent-office .monitor { width:46px; } #agent-office .mug { left:calc(50% + 25px); } #agent-office .desk-plaque { padding-left:3px; padding-right:3px; font-size:11px; } #agent-office .plaque-role { font-size:10px; } #agent-office .station[data-state="working"] .robot { transform:translate(35px,-39px); } #agent-office .office-bottom { grid-template-columns:1fr; padding:16px; gap:16px; } #agent-office .agent-key { min-height:44px; } #agent-office .task-input { font-size:16px; } #agent-office .office-legend { padding-left:16px; padding-right:16px; gap:10px; } }
     @media(max-width:490px) { #agent-office .job-hub { padding:14px; } #agent-office .job-row { grid-template-columns:minmax(86px,.8fr) minmax(0,1.5fr); } #agent-office .stage-chip { grid-column:1/-1; justify-self:start; } }
-    #agent-office .shared-space { grid-column:1/-1; height:164px; position:relative; margin:0 7px; border-radius:8px; background:light-dark(#d8ddca,#414d3b); }
-    #agent-office .whiteboard { position:absolute; top:7px; left:10px; width:31%; height:43px; background:var(--office-panel); border:4px solid var(--office-edge); border-radius:3px; text-align:center; color:var(--office-muted); font-size:11px; padding:7px 2px; }
-    #agent-office .reference-shelf { position:absolute; top:7px; right:10px; width:31%; height:43px; background:var(--office-desk); border-bottom:6px solid var(--office-edge); text-align:center; font-size:11px; padding:7px 2px; }
-    #agent-office .shared-label { position:absolute; top:12px; left:35%; right:35%; text-align:center; color:var(--office-muted); font-size:11px; }
+    #agent-office .office-amenity { position:relative; min-width:0; min-height:222px; border-radius:10px; background:light-dark(#ffffff24,#ffffff05); overflow:hidden; }
+    #agent-office .office-whiteboard { grid-area:whiteboard; }
+    #agent-office .coffee-space { grid-area:coffee; }
+    #agent-office .room-whiteboard { position:absolute; top:22px; left:8%; width:84%; height:104px; padding:12px 8px 8px; border:5px solid var(--office-edge); border-radius:4px; background:var(--office-panel); color:var(--office-muted); text-align:center; box-shadow:0 5px 0 var(--office-shadow); }
+    #agent-office .room-whiteboard:before,#agent-office .room-whiteboard:after { content:""; position:absolute; left:13%; right:13%; height:3px; border-radius:3px; background:light-dark(#79a9a0,#78a992); transform:rotate(-2deg); }
+    #agent-office .room-whiteboard:before { top:43px; box-shadow:18px 16px 0 light-dark(#d3a553,#c59a4d); }
+    #agent-office .room-whiteboard:after { top:75px; left:25%; right:24%; background:light-dark(#7d99c8,#82a9dc); transform:rotate(2deg); }
+    #agent-office .room-board-title { display:block; color:var(--office-ink); font-size:10px; font-weight:800; letter-spacing:.13em; }
+    #agent-office .room-board-count { position:absolute; bottom:5px; left:0; right:0; font-size:9px; font-weight:700; }
+    #agent-office .coffee-counter { position:absolute; top:91px; left:8%; width:84%; height:39px; border-bottom:8px solid var(--office-edge); border-radius:4px; background:var(--office-desk); box-shadow:0 7px 0 -3px var(--office-shadow); }
+    #agent-office .coffee-counter:before,#agent-office .coffee-counter:after { content:""; position:absolute; top:31px; width:8px; height:21px; background:var(--office-edge); }
+    #agent-office .coffee-counter:before { left:10px; } #agent-office .coffee-counter:after { right:10px; }
+    #agent-office .coffee-machine { position:absolute; left:18%; top:-66px; width:55%; max-width:78px; height:67px; border:5px solid var(--office-screen); border-radius:8px 8px 4px 4px; background:light-dark(#73827a,#1d2922); box-shadow:0 4px 0 var(--office-shadow); }
+    #agent-office .coffee-machine:before { content:""; position:absolute; top:8px; left:9px; right:9px; height:14px; border-radius:3px; background:var(--activity-fill); box-shadow:0 0 10px var(--activity-glow); }
+    #agent-office .coffee-machine:after { content:""; position:absolute; left:22%; right:22%; bottom:7px; height:24px; border:3px solid light-dark(#7b4b2c,#c99162); border-top:0; border-radius:1px 1px 10px 10px; background:linear-gradient(to top,light-dark(#68402a,#9b623f) 0 52%,transparent 53%); }
+    #agent-office .coffee-mug { position:absolute; right:8%; top:-18px; width:19px; height:18px; border-radius:2px 2px 7px 7px; background:light-dark(#f1d681,#e7c96f); }
+    #agent-office .coffee-mug:after { content:""; position:absolute; right:-7px; top:3px; width:8px; height:9px; border:3px solid light-dark(#f1d681,#e7c96f); border-left:0; border-radius:0 7px 7px 0; }
+    #agent-office .coffee-steam { position:absolute; right:13%; top:-44px; width:18px; height:27px; opacity:.72; }
+    #agent-office .coffee-steam:before,#agent-office .coffee-steam:after { content:""; position:absolute; width:7px; height:23px; border-left:2px solid var(--office-muted); border-radius:50%; animation:office-steam 2.2s ease-in-out infinite; }
+    #agent-office .coffee-steam:after { left:8px; top:3px; animation-delay:.5s; }
+    #agent-office .amenity-label { position:absolute; top:151px; left:5%; right:5%; text-align:center; color:var(--office-muted); line-height:1.2; }
+    #agent-office .amenity-label strong { display:block; color:var(--office-ink); font-size:10px; letter-spacing:.1em; }
+    #agent-office .amenity-label small { display:block; margin-top:4px; font-size:9px; }
     #agent-office .office-room > .robot { left:0; top:0; z-index:10; pointer-events:none; transition:transform var(--walk-duration,0ms) linear; }
     #agent-office .traveler-number { position:absolute; top:50px; left:8px; width:23px; height:19px; border-radius:6px; text-align:center; font-size:11px; background:var(--activity-fill); color:var(--activity-ink); border:1px solid var(--office-line); }
     #agent-office .robot[data-selected="true"] .traveler-number { outline:2px solid var(--office-ink); outline-offset:1px; }
@@ -186,7 +205,8 @@
     @keyframes office-footsteps { 0% { transform:translateY(0) rotate(-9deg); } 100% { transform:translateY(-3px) rotate(9deg); } }
     @keyframes office-bob { from { transform:translateY(0); } to { transform:translateY(-2px); } }
     @keyframes office-spotlight { 0%,100% { box-shadow:none; } 18%,68% { box-shadow:0 0 0 3px light-dark(#f1c45d,#ffe083),0 0 28px 10px light-dark(#efc35380,#ffe08355); } }
-    @media(max-width:490px) { #agent-office .shared-space { margin-left:0; margin-right:0; } #agent-office .whiteboard { left:5px; width:34%; } #agent-office .reference-shelf { right:5px; width:34%; } #agent-office .shared-label { display:none; } }
+    @keyframes office-steam { 0%,100% { transform:translateY(5px) scaleX(.8); opacity:.25; } 50% { transform:translateY(-4px) scaleX(1.15); opacity:.8; } }
+    @media(max-width:490px) { #agent-office .room-whiteboard { left:4%; width:92%; padding-left:2px; padding-right:2px; } #agent-office .coffee-counter { left:4%; width:92%; } #agent-office .coffee-machine { left:10%; width:64%; } #agent-office .amenity-label { left:1%; right:1%; } }
     @media(prefers-reduced-motion:reduce) { #agent-office *,#agent-office *:before,#agent-office *:after { transition:none!important; animation:none!important; } }
   </style>
   <div class="office-window" data-cozy="true">
@@ -241,11 +261,15 @@
       const resultsCount = root.querySelector('.results-count');
       const resultDetail = root.querySelector('.result-detail');
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-      const shared = document.createElement('div');
-      shared.className='shared-space';
-      shared.innerHTML='<span class="whiteboard">Whiteboard</span><span class="shared-label">TEAM<br>SPACE</span><span class="reference-shelf">References</span>';
-      const roomBoard=shared.querySelector('.whiteboard');
-      const roomShelf=shared.querySelector('.reference-shelf');
+      const whiteboardSpace = document.createElement('section');
+      whiteboardSpace.className='office-amenity office-whiteboard';
+      whiteboardSpace.setAttribute('aria-label','Office whiteboard');
+      whiteboardSpace.innerHTML='<span class="room-whiteboard" aria-hidden="true"><span class="room-board-title">TEAM BOARD</span><span class="room-board-count">0 active</span></span><span class="amenity-label"><strong>WHITEBOARD</strong><small>Plan · build · ship</small></span>';
+      const roomBoard=whiteboardSpace.querySelector('.room-board-count');
+      const coffeeSpace = document.createElement('section');
+      coffeeSpace.className='office-amenity coffee-space';
+      coffeeSpace.setAttribute('aria-label','Office coffee station: no coffee, no workee');
+      coffeeSpace.innerHTML='<span class="coffee-counter" aria-hidden="true"><span class="coffee-machine"></span><span class="coffee-mug"></span><span class="coffee-steam"></span></span><span class="amenity-label"><strong>COFFEE</strong><small>No coffee, no workee</small></span>';
       const colors = [
         ['#dfa650','#f0b958','#a97430','#c18e3f'], ['#79afa2','#88c7b6','#4c8576','#58a28e'],
         ['#d7816d','#f09b83','#a35b4b','#c07761'], ['#a095c6','#b7ace3','#746691','#8e81bd'],
@@ -262,9 +286,11 @@
       let selected = 0;
       let liveMode = false;
       const appearance = { cozy:true, pace:'Relaxed' };
+      deskArea.append(whiteboardSpace);
       agents.forEach((a,i) => {
         const station = document.createElement('button');
         station.type='button'; station.className='station';
+        station.style.gridArea=`key${i+1}`;
         station.style.setProperty('--suit',`light-dark(${colors[i][0]},${colors[i][1]})`);
         station.style.setProperty('--trim',`light-dark(${colors[i][2]},${colors[i][3]})`);
         station.innerHTML=`<span class="worktable" aria-hidden="true"></span><span class="monitor" aria-hidden="true"><span class="screen-lines"></span></span><span class="mug" aria-hidden="true"></span><span class="robot robot-${i+1}" aria-hidden="true"><span class="robot-head"><span class="visor"></span></span><span class="robot-body"><span class="robot-badge"></span></span><span class="feet"></span></span><span class="result-sheet" aria-hidden="true"></span><span class="station-label"><span class="desk-plaque"><span class="plaque-name"></span><span class="plaque-role"></span></span><span class="station-state"></span></span>`;
@@ -275,7 +301,7 @@
         const number=document.createElement('span'); number.className='traveler-number'; number.textContent=String(i+1); a.robot.append(number);
         const clipboard=document.createElement('span'); clipboard.className='clipboard'; a.robot.append(clipboard);
         room.append(a.robot);
-        if(i===2) deskArea.append(shared);
+        if(i===1) deskArea.append(coffeeSpace);
         const key = document.createElement('button'); key.type='button'; key.className='agent-key'; key.textContent=String(i+1);
         key.addEventListener('click',()=>select(i)); keyArea.append(key); a.key=key;
       });
@@ -506,7 +532,6 @@
         }
         showResult(selectedResultId);
         roomBoard.textContent=`${boardAgents.filter(item=>item.assignment).length} active`;
-        roomShelf.textContent=`${results.length} result${results.length===1?'':'s'}`;
       }
       function render() {
         agents.forEach((a,i) => {
@@ -531,16 +556,22 @@
       function spot(a,location) {
         const r=room.getBoundingClientRect();
         const d=a.station.getBoundingClientRect();
-        const s=shared.getBoundingClientRect();
+        const board=whiteboardSpace.getBoundingClientRect();
+        const coffee=coffeeSpace.getBoundingClientRect();
         const homeX=d.left-r.left+d.width/2-19;
         const homeY=d.top-r.top+72;
-        const laneY=s.top-r.top+47+(a.index>=3?43:0);
+        const topRow=agents[0]?.station.getBoundingClientRect();
+        const lowerRow=agents[2]?.station.getBoundingClientRect();
+        const robotHeight=a.robot.getBoundingClientRect().height||48;
+        const laneY=topRow && lowerRow
+          ? topRow.bottom-r.top+Math.max(0,(lowerRow.top-topRow.bottom-robotHeight)/2)
+          : homeY;
         if(location && typeof location==='object') {
           const target=agents.find(agent=>agent.threadId===location.desk);
           if(!target) return {x:homeX,y:homeY};
           const desk=target.station.getBoundingClientRect(),home=spot(target,'home');
           // Stand in the gap beside the colleague, above nameplates at narrow widths.
-          const side=target.index%3===2?-1:1;
+          const side=desk.left-r.left+desk.width/2>r.width*.72?-1:1;
           const x=Math.max(4,Math.min(r.width-55,home.x+side*44));
           const y=home.y+(desk.width<135?0:12);
           if(location.aisle) return {x,y:spot(target,'corridor').y};
@@ -548,8 +579,10 @@
         }
         if(location==='home') return {x:homeX,y:homeY};
         if(location==='corridor') return {x:homeX,y:laneY};
-        if(location==='board') return {x:s.left-r.left+8+(a.index%3)*38,y:laneY};
-        if(location==='shelf') return {x:s.right-r.left-126+(a.index%3)*38,y:laneY};
+        if(location==='board-corridor') return {x:board.left-r.left+board.width/2-19,y:laneY};
+        if(location==='coffee-corridor') return {x:coffee.left-r.left+coffee.width/2-19,y:laneY};
+        if(location==='board') return {x:board.left-r.left+board.width/2-19,y:board.top-r.top+104};
+        if(location==='coffee') return {x:coffee.left-r.left+coffee.width/2-19,y:coffee.top-r.top+104};
         return {x:homeX,y:homeY};
       }
       function position(a,p,duration=0) {
@@ -656,8 +689,12 @@
         const pace=appearance.pace==='Quick'?0.65:1;
         const route=[
           ['corridor','Heading to the whiteboard…',0],
+          ['board-corridor','Heading to the whiteboard…',0],
           ['board','Thinking at the whiteboard…',1600],
-          ['shelf','Looking through references…',1500],
+          ['board-corridor','Coffee break…',0],
+          ['coffee-corridor','Coffee break…',0],
+          ['coffee','Coffee fuels the next step…',1200],
+          ['coffee-corridor','Back to the desk…',0],
           ['corridor','Back to the desk…',0],
           ['home',liveMode?'Working in Codex…':'Finishing the example task…',2200]
         ];

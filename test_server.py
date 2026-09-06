@@ -223,7 +223,23 @@ class OfficeTests(unittest.TestCase):
         status.value={'type':'active','activeFlags':['waitingOnUserInput']}
         self.assertEqual(state.snapshot()['slots'][0]['state'],'waiting')
         status.value=None
-        self.assertEqual(state.snapshot()['slots'][0]['state'],'unknown')
+        fallback=state.snapshot()['slots'][0]
+        self.assertEqual(fallback['state'],'working')
+        self.assertFalse(fallback['approvalStateAvailable'])
+
+    def test_missing_desktop_runtime_preserves_only_fresh_event_state(self):
+        path=self.add_task('one',100)
+        class Status:
+            def follow(self, ids): self.ids=set(ids)
+            def get(self, thread_id): return None
+        state=OfficeState(self.root,desktop_status=Status())
+        fresh=state.snapshot()['slots'][0]
+        self.assertEqual(fresh['state'],'working')
+        self.assertFalse(fresh['approvalStateAvailable'])
+        os.utime(path,(time.time()-600,time.time()-600))
+        stale=OfficeState(self.root,desktop_status=Status()).snapshot()['slots'][0]
+        self.assertEqual(stale['state'],'unknown')
+        self.assertFalse(stale['approvalStateAvailable'])
 
 
 if __name__ == '__main__':

@@ -2,11 +2,9 @@
 
 **A live office for your Codex agents.**
 
-Six pinned tasks become six characters with their own desks, nameplates, and activity colors. A live whiteboard shows each manager-tracked assignment and its explicit stage, the **Needs you** tray holds decisions until they are resolved, and the results shelf keeps completed work handy. Working agents walk between their desks, the whiteboard, and the reference shelf. When a task needs your input or approval, its monitor, illustrated key, and character badge turn amber.
+Six pinned tasks become six characters with their own desks, nameplates, and activity colors. A live whiteboard shows each manager-tracked assignment and its explicit stage, the **Needs you** tray holds decisions until they are resolved, and the results shelf keeps completed work handy. Working agents walk between their desks, the whiteboard, and the coffee machine—because no coffee means no workee. When a task needs your input or approval, its monitor, illustrated key, and character badge turn amber.
 
 Agent Office is a local companion for the Codex desktop app on macOS. It pairs with the Creator Micro 2's built-in **Pinned chats** mapping and also works while you select tasks normally in Codex.
-
-![Agent Office showing six desks and matching activity colors](docs/agent-office.png)
 
 ## Start the office
 
@@ -45,7 +43,7 @@ Atlas (Travel Agent)
 Nova (Pick up player)
 ```
 
-These are example names. The live office uses your current pinned task names. The illustrated keypad follows the physical arrangement: two keys above a row of four.
+These are example names. The live office uses your current pinned task names. Both the office and illustrated keypad follow the physical arrangement: desks 1 and 2 sit in the upper middle, desks 3–6 form the lower row, and the two upper corners hold the whiteboard and coffee machine. Characters use the open center corridor when moving between those shared spaces instead of cutting through a teammate's desk.
 
 | Color | Meaning |
 | --- | --- |
@@ -87,7 +85,7 @@ It reads pinned-task metadata from a local SQLite database in read-only mode and
 
 **Compatibility:** the local database, session files, and desktop status stream use observed internal formats. Codex updates may require an adapter change. This version was checked with the macOS desktop app in September 2026; it is not a supported public Codex status API. Windows, remote tasks, and ChatGPT cloud tasks are not currently supported.
 
-If the desktop status stream is unavailable, active work shows as unavailable rather than guessing whether it is waiting for approval. Completed and idle session states can still be displayed. Keep the Mac and Codex running for live status and local manager checks.
+If the desktop status stream has no record for a task, a fresh local `task_started` event can still show that task as working, but the office does not guess whether it is waiting for approval. That event fallback expires after five minutes; stale or missing activity shows as unavailable. Completed and idle session states can still be displayed. Keep the Mac and Codex running for live status and local manager checks.
 
 ## Development
 
