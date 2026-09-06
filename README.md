@@ -85,6 +85,12 @@ worker tasks still use the account's normal allowance. This opt-in desktop
 integration uses observed internal IPC, not a supported public wake-up API; it
 stops automatic dispatch on an uncertain send instead of risking duplicates.
 
+With the local watch enabled, the manager's desk says **Watching team** between
+rounds and shows the last completed ledger check in your browser's local time.
+**Checking in** follows real manager communication events; direct project work
+still says **Working**. Paused, disabled, or stale watch data is labeled explicitly.
+These labels do not change activity colors, OPEN-sign behavior, or check timing.
+
 When the configured manager checks the team, Scout carries a clipboard and walks to that teammate's desk before the animated speech bubbles appear. Follow-up messages have their own labels. Real check-ins queue one at a time, skip expired events, and return both characters to normal activity without exposing message text. Reduced-motion mode keeps the same information stationary.
 
 ## Local data and compatibility

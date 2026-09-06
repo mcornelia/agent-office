@@ -53,6 +53,9 @@
     #agent-office .plaque-role { display:block; margin-top:2px; font-size:11px; overflow-wrap:anywhere; }
     #agent-office .plaque-role[hidden] { display:none; }
     #agent-office .station-state { display:block; color:var(--office-muted); font-size:11px; }
+    #agent-office .station[data-manager-watch] .station-state { font-size:13px; font-weight:500; }
+    #agent-office .manager-check { display:block; color:var(--office-muted); font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+    #agent-office .manager-check[hidden] { display:none; }
     #agent-office .worktable { position:absolute; top:59px; left:50%; transform:translateX(-50%); width:124px; height:42px; background:var(--office-desk); border-radius:5px; border-bottom:8px solid var(--office-edge); box-shadow:0 9px 0 -3px var(--office-shadow); }
     #agent-office .worktable:before, #agent-office .worktable:after { content:""; position:absolute; width:8px; height:22px; background:var(--office-edge); top:33px; }
     #agent-office .worktable:before { left:9px; } #agent-office .worktable:after { right:9px; }
@@ -301,6 +304,8 @@
         station.style.setProperty('--trim',`light-dark(${colors[i][2]},${colors[i][3]})`);
         station.innerHTML=`<span class="worktable" aria-hidden="true"></span><span class="monitor" aria-hidden="true"><span class="screen-lines"></span></span><span class="mug" aria-hidden="true"></span><span class="robot robot-${i+1}" aria-hidden="true"><span class="robot-head"><span class="visor"></span></span><span class="robot-body"><span class="robot-badge"></span></span><span class="feet"></span></span><span class="result-sheet" aria-hidden="true"></span><span class="station-label"><span class="desk-plaque"><span class="plaque-name"></span><span class="plaque-role"></span></span><span class="station-state"></span></span>`;
         station.addEventListener('click',()=>select(i)); deskArea.append(station); a.station=station;
+        const check=document.createElement('span'); check.className='manager-check'; check.hidden=true;
+        station.querySelector('.station-label').append(check);
         a.robot=station.querySelector('.robot');
         a.robot.style.setProperty('--suit',`light-dark(${colors[i][0]},${colors[i][1]})`);
         a.robot.style.setProperty('--trim',`light-dark(${colors[i][2]},${colors[i][3]})`);
@@ -430,6 +435,25 @@
       }
       window.addEventListener('pagehide',clearCommunications,{once:true});
       let selectedResultId=null,spotlightTimer=null;
+      let managerWatch=null,managerKey=null,managerSource=null;
+      function managerDisplay(key,state) {
+        if(key!==managerKey || !managerWatch || !liveConnected) return null;
+        const now=Date.now(),watch=managerWatch;
+        const localAt=watch.lastLocalCheckAt;
+        const fresh=typeof localAt==='number' && Number.isFinite(localAt) && now-localAt*1000<=45000 && localAt*1000-now<=5000;
+        const healthy=watch.enabled===true && fresh && ['idle','watching','settling','ready','requested','manager-busy'].includes(watch.status);
+        const disabled=watch.enabled===false || ['disabled','configuration-changed'].includes(watch.status);
+        const watchLabel=disabled?'Watch disabled':watch.status==='paused-error'?'Watch paused':healthy?'Watching team':watch.status==='starting'?'Watch starting':'Watch unavailable';
+        // An active task is not necessarily an office round. Use real communication
+        // events for Checking in; never change the underlying activity colors.
+        const checking=healthy && roundManager?.keyNumber===key && roundManager.roundHold;
+        const label=['idle','working'].includes(state)?(checking?'Checking in':state==='idle'?watchLabel:null):null;
+        const checked=managerSource?.available && typeof managerSource.updatedAt==='string'?Date.parse(managerSource.updatedAt):NaN;
+        const validCheck=Number.isFinite(checked) && checked>0 && checked<=now+5000;
+        const time=validCheck?new Intl.DateTimeFormat(undefined,{...(now-checked>=86400000?{month:'short',day:'numeric'}:{}),hour:'numeric',minute:'2-digit'}).format(checked):null;
+        const last=time?`Last checked ${time}`:'Last check unavailable';
+        return {label,watchLabel,note:label===watchLabel || checking?last:`${watchLabel} · ${last}`};
+      }
       function emptyState(container,text) {
         const item=document.createElement('p'); item.className='panel-empty'; item.textContent=text;
         container.replaceChildren(item);
@@ -490,6 +514,8 @@
           let fallback=activityLabels[activity] || activityLabels.unknown;
           // A missing/stale ledger cannot establish that an idle agent is free.
           if(activity==='idle' && (!source.available || stale)) fallback={stage:'unknown',title:'Current assignment unavailable',chip:'Unknown'};
+          const watching=managerDisplay(item.key,activity);
+          if(watching?.label) fallback={stage:watching.label==='Checking in'?'working':watching.label==='Watching team'?'watching':'unknown',title:watching.label,chip:watching.label==='Watching team'?'Watching':watching.label==='Checking in'?'Checking in':'Watch status'};
           const stage=assignment?(assignment.stage || 'unknown'):fallback.stage;
           const row=document.createElement('button'); row.type='button'; row.className='job-row'; row.dataset.stage=stage;
           const identity=document.createElement('span'); identity.className='job-agent';
@@ -565,11 +591,15 @@
           sign.querySelector('small').textContent=status;
         }
         agents.forEach((a,i) => {
-          const stateLabel = {working:'Working',done:'Complete · unread',idle:'Idle',waiting:'Needs your input',unknown:'Status unavailable',error:'Error',unassigned:'No pinned task'}[a.state] || 'Status unavailable';
+          const watching=managerDisplay(a.keyNumber,a.state);
+          const stateLabel = watching?.label || {working:'Working',done:'Complete · unread',idle:'Idle',waiting:'Needs your input',unknown:'Status unavailable',error:'Error',unassigned:'No pinned task'}[a.state] || 'Status unavailable';
           for (const el of [a.station,a.key]) {
             el.dataset.state=a.state; el.setAttribute('aria-pressed',String(i===selected));
-            el.setAttribute('aria-label',`${a.keyNumber} · ${a.displayTitle}, ${stateLabel}${i===selected?', selected in office':''}`);
+            el.setAttribute('aria-label',`${a.keyNumber} · ${a.displayTitle}, ${stateLabel}${watching?', '+watching.note:''}${i===selected?', selected in office':''}`);
           }
+          if(watching) a.station.dataset.managerWatch='true'; else delete a.station.dataset.managerWatch;
+          const check=a.station.querySelector('.manager-check');
+          check.hidden=!watching; check.textContent=watching?.note || '';
           a.station.querySelector('.plaque-name').textContent=`${a.keyNumber} · ${a.name}`;
           const role=a.station.querySelector('.plaque-role');
           role.textContent=a.role; role.hidden=!a.role;
@@ -647,6 +677,7 @@
         a.runId++; a.moving=false; a.robot.dataset.walking='false'; a.location='home';
         if(root.isConnected && a.state==='working') void work(a);
         else position(a,spot(a,'home'),reducedMotion.matches?0:250);
+        render();
       }
       function roundValid(event,{manager,teammate}) {
         return root.isConnected && manager.threadId===event.from &&
@@ -671,6 +702,7 @@
           const {manager,teammate}=people;
           if(roundManager && roundManager!==manager) release(roundManager);
           roundManager=manager; hold(manager); manager.robot.dataset.rounds='true';
+          render();
           if(event.kind==='overview' || reducedMotion.matches) return;
           // If input is needed, preserve the stationary communication fallback.
           if(['waiting','error','unknown','unassigned'].includes(manager.state)) return;
@@ -762,6 +794,9 @@
         applySnapshot(snapshot) {
           liveMode=true;
           liveConnected=!!snapshot.connected;
+          managerWatch=snapshot.managerWatch || null;
+          managerKey=!snapshot.jobBoard?.presentation && Array.isArray(snapshot.jobBoard?.agents)?snapshot.jobBoard.agents.find(item=>item?.role==='manager')?.key ?? null:null;
+          managerSource=snapshot.jobBoard?.source || null;
           input.hidden=true; send.hidden=true;
           renderJobBoard(snapshot && snapshot.jobBoard, snapshot.connected?snapshot.slots:null);
           const tag=root.querySelector('.office-tag');

@@ -121,7 +121,7 @@ function office({reduced=false,board=false}={}) {
   const stations=()=>elements.filter(e=>e.className==='station');
   const robots=()=>stations().map((_,i)=>elements.find(e=>e.className===`robot robot-${i+1}`));
   const motion={matches:reduced,addEventListener:(_,fn)=>motion.change=fn};
-  const context={document:{getElementById:()=>root,createElement:tag=>new Element(tag)},window:{matchMedia:()=>motion,addEventListener(){}},Date:{now:()=>now},setTimeout:schedule,clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>schedule(fn,16),cancelAnimationFrame:id=>timers.delete(id),ResizeObserver:class{observe(){}}};
+  const context={document:{getElementById:()=>root,createElement:tag=>new Element(tag)},window:{matchMedia:()=>motion,addEventListener(){}},Date:{now:()=>now,parse:Date.parse},setTimeout:schedule,clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>schedule(fn,16),cancelAnimationFrame:id=>timers.delete(id),ResizeObserver:class{observe(){}}};
   vm.runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
   const snapshot=(communications=[],states=['working','working','idle','idle','idle','idle'])=>root.agentOffice.applySnapshot({connected:true,slots:states.map((state,i)=>({avatar:i,key:i+1,id:i===0?'manager':i===1?'worker':`other-${i}`,title:`Agent ${i}`,state})),communications});
   const advance=async ms=>{const end=now+ms;await flush();for(let steps=0;steps<10000;steps++){const next=[...timers].filter(([,t])=>t.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;now=next[1].at;timers.delete(next[0]);next[1].fn();await flush();}now=end;await flush();};
@@ -231,4 +231,66 @@ test('presentation hides board details and absent board data stays unavailable',
   assert.equal(h.root.querySelector('.job-hub').hidden,true);
   h.root.agentOffice.applySnapshot({connected:false,slots:[]});
   assert.equal(h.root.querySelector('.board-health').textContent,'Unavailable');
+});
+
+function watchSnapshot(h,{state='idle',watch={},communications=[],board=boardFixture(),key=1}={}) {
+  board.agents[0].role='manager';board.agents[0].key=key;
+  board.source.updatedAt='1970-01-01T00:15:00Z';
+  h.root.agentOffice.applySnapshot({connected:true,managerWatch:{enabled:true,status:'watching',lastLocalCheckAt:1000,...watch},
+    slots:[{avatar:0,key,id:'manager',title:'Scout',state},{avatar:1,key:key===2?1:2,id:'worker',title:'Bolt',state:'working'}],jobBoard:board,communications});
+  return {label:h.stations()[0].querySelector('.station-state').textContent,note:h.stations()[0].querySelector('.manager-check').textContent};
+}
+test('healthy local watch labels only the configured manager and keeps real colors',()=>{
+  const h=office({reduced:true,board:true});
+  const view=watchSnapshot(h,{key:2});
+  assert.equal(view.label,'Watching team');assert.match(view.note,/^Last checked /);
+  assert.equal(h.root.querySelector('.job-list').children[0].querySelector('.job-title').textContent,'Watching team');
+  assert.equal(h.robots()[0].dataset.state,'idle');
+  assert.equal(h.stations()[1].querySelector('.station-state').textContent,'Working');
+  assert.equal(h.stations()[1].querySelector('.manager-check').hidden,true);
+  assert.match(h.stations()[0].attributes['aria-label'],/Watching team, Last checked/);
+});
+test('direct manager work, unread results and input needs remain truthful',()=>{
+  const h=office({reduced:true,board:true});
+  for(const [state,label] of [['working','Working'],['done','Complete · unread'],['waiting','Needs your input'],['error','Error'],['unknown','Status unavailable']]) {
+    const view=watchSnapshot(h,{state,watch:{status:'manager-busy'}});
+    assert.equal(view.label,label);assert.match(view.note,/Watching team · Last checked/);
+    assert.equal(h.robots()[0].dataset.state,state);
+  }
+  const board=boardFixture();board.agents[0].assignment={title:'User-approved project',stage:'testing'};
+  watchSnapshot(h,{state:'working',board});
+  assert.equal(h.root.querySelector('.job-list').children[0].querySelector('.job-title').textContent,'User-approved project');
+});
+test('Checking in follows actual round events and returns to Watching team',async()=>{
+  const h=office({reduced:true,board:true});
+  assert.equal(watchSnapshot(h,{communications:[event('real-check')]}).label,'Checking in');
+  assert.equal(h.robots()[0].dataset.state,'idle');
+  await h.advance(5000);
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Watching team');
+  watchSnapshot(h,{communications:[event('stale-check','worker',900)]});
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Watching team');
+});
+test('paused, disabled, stale and unsupported watch states never claim monitoring is healthy',()=>{
+  const h=office({reduced:true,board:true});
+  for(const [watch,label] of [
+    [{status:'paused-error'},'Watch paused'],[{enabled:false},'Watch disabled'],
+    [{status:'configuration-changed'},'Watch disabled'],[{status:'disabled'},'Watch disabled'],
+    [{status:'starting'},'Watch starting'],[{status:'unavailable'},'Watch unavailable'],
+    [{status:'new-unknown-status'},'Watch unavailable'],[{lastLocalCheckAt:950},'Watch unavailable'],
+    [{lastLocalCheckAt:1007},'Watch unavailable'],[{lastLocalCheckAt:null},'Watch unavailable']
+  ]) assert.equal(watchSnapshot(h,{watch}).label,label);
+  const board=boardFixture();board.source.available=false;
+  assert.equal(watchSnapshot(h,{board}).note,'Last check unavailable');
+});
+test('disconnect, absent watch and private presentation clear manager details',()=>{
+  const h=office({reduced:true,board:true});watchSnapshot(h);
+  h.root.agentOffice.applySnapshot({connected:false,slots:[]});
+  assert.equal(h.stations()[0].querySelector('.manager-check').hidden,true);
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Status unavailable');
+  applyBoard(h,'idle');
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Idle');
+  watchSnapshot(h);
+  h.root.agentOffice.applySnapshot({connected:true,slots:[{avatar:0,key:1,id:'presentation-slot-1',title:'Agent 1',state:'idle'}],jobBoard:{presentation:true}});
+  assert.equal(h.stations()[0].querySelector('.manager-check').hidden,true);
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Idle');
 });
