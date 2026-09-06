@@ -47,19 +47,25 @@ These are example names. The live office uses your current pinned task names. Bo
 
 | Color | Meaning |
 | --- | --- |
-| White | Idle |
+| White | On a break ☕ (confirmed idle) |
 | Blue | Working |
 | Amber | Waiting for your input or approval |
 | Green | Complete, with an unread result |
 | Red | Observed error |
-| Dark | Status unavailable or no assigned task |
+| Dark | Reconnecting, status unavailable, or no assigned task |
 
 Movement illustrates activity; a walk to the whiteboard does not mean a particular tool is running. Reduced-motion preferences are respected.
 
 The neon **OPEN** sign lights up when at least one agent is working, including
 the manager. It goes dark when everyone is idle, finished, or waiting for input.
-If activity cannot be verified, the dark sign says **Status unavailable** rather
-than claiming the office is off duty. The sign itself uses no AI.
+If the live feed is interrupted, the dark sign and assigned desks say
+**Reconnecting…**, not **On a break**. A connected feed with an unknown task
+state still says **Status unavailable**. The sign itself uses no AI.
+
+The page pauses polling while hidden and reconnects when you return, restore it
+with Back/Forward, or regain network connectivity. Interrupted requests cannot
+overwrite a newer snapshot or start duplicate polling loops. After updating an
+already-open office page, reload it once to load the new recovery code.
 
 ## Use the Creator Micro 2
 
@@ -118,6 +124,9 @@ python3 -m unittest -v test_server.py test_desktop_status.py test_communications
 python3 -m unittest -v test_job_board.py
 python3 -m unittest -v desktop/test_agent_office_ctl.py
 python3 -m unittest discover -s manager -p 'test_*.py' -v
+
+# Exercise the browser scene and page hide/return/network recovery.
+node --test test_rounds.cjs test_polling.cjs
 
 # Inspect your current six slots locally. Output contains private task IDs.
 python3 server.py --check

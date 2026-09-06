@@ -197,7 +197,7 @@
   <div class="office-window" data-cozy="true">
     <div class="office-header"><span class="office-brand">THE AGENT OFFICE</span><span class="office-tag">Preview · example activity</span></div>
     <div class="office-room">
-      <div class="back-wall"><div class="window-view" aria-hidden="true"></div><div class="open-sign" data-open="false" role="status" aria-live="polite" aria-label="Office status unavailable">OPEN<small>Status unavailable</small></div><div class="window-view" aria-hidden="true"></div></div>
+      <div class="back-wall"><div class="window-view" aria-hidden="true"></div><div class="open-sign" data-open="false" role="status" aria-live="polite" aria-label="Office reconnecting">OPEN<small>Reconnecting…</small></div><div class="window-view" aria-hidden="true"></div></div>
       <div class="office-desks" aria-label="Agent desks"></div>
     </div>
     <section class="job-hub" aria-label="Agent work and results">
@@ -453,7 +453,7 @@
         // Use this snapshot's live slots, never the previous frame's characters.
         const liveSlots=Array.isArray(slots)?slots:null;
         const slotByKey=new Map((liveSlots || []).filter(slot=>slot && Number.isInteger(slot.key)).map(slot=>[slot.key,slot]));
-        roomBoard.textContent=liveSlots?`${liveSlots.filter(slot=>slot?.state==='working').length} active`:'Status unavailable';
+        roomBoard.textContent=liveSlots?`${liveSlots.filter(slot=>slot?.state==='working').length} active`:'Reconnecting…';
         // The rounds controller has a deliberately tiny DOM harness in tests;
         // board rendering is optional in that isolated scene.
         if(!jobHub) return;
@@ -479,7 +479,7 @@
         const stageLabels={researching:'Researching',building:'Building',testing:'Testing',waiting:'Waiting',unknown:'Stage unknown'};
         const activityLabels={
           working:{stage:'working',title:'Active · no project assignment listed',chip:'Working'},
-          idle:{stage:'ready',title:'Ready for the next assignment',chip:'Ready'},
+          idle:{stage:'ready',title:'On a break ☕ · ready for the next assignment',chip:'On a break'},
           done:{stage:'done',title:'Response complete · unread',chip:'Complete'},
           waiting:{stage:'waiting',title:'Needs your input or approval',chip:'Needs you'},
           error:{stage:'error',title:'Task reported an error',chip:'Error'},
@@ -489,6 +489,7 @@
           const assignment=item.assignment && typeof item.assignment==='object'?item.assignment:null;
           const activity=slotByKey.get(item.key)?.state;
           let fallback=activityLabels[activity] || activityLabels.unknown;
+          if(!liveSlots) fallback={stage:'unknown',title:'Live connection interrupted',chip:'Reconnecting…'};
           // A missing/stale ledger cannot establish that an idle agent is free.
           if(activity==='idle' && (!source.available || stale)) fallback={stage:'unknown',title:'Current assignment unavailable',chip:'Unknown'};
           const watching=managerDisplay(item.key,activity);
@@ -561,15 +562,16 @@
         const sign=root.querySelector('.open-sign');
         if(sign) {
           const working=(!liveMode||liveConnected)&&agents.some(a=>a.state==='working');
-          const unknown=(liveMode&&!liveConnected)||agents.some(a=>a.state==='unknown');
-          const status=working?'Agents at work':unknown?'Status unavailable':'Off duty';
+          const disconnected=liveMode&&!liveConnected;
+          const unknown=agents.some(a=>a.state==='unknown');
+          const status=working?'Agents at work':disconnected?'Reconnecting…':unknown?'Status unavailable':'Off duty';
           sign.dataset.open=String(working);
-          sign.setAttribute('aria-label',working?'Office open: agents at work':unknown?'Office status unavailable':'Office off duty: no active work');
+          sign.setAttribute('aria-label',working?'Office open: agents at work':disconnected?'Office reconnecting':unknown?'Office status unavailable':'Office off duty: no active work');
           sign.querySelector('small').textContent=status;
         }
         agents.forEach((a,i) => {
           const watching=managerDisplay(a.keyNumber,a.state);
-          const stateLabel = watching?.label || {working:'Working',done:'Complete · unread',idle:'Idle',waiting:'Needs your input',unknown:'Status unavailable',error:'Error',unassigned:'No pinned task'}[a.state] || 'Status unavailable';
+          const stateLabel = watching?.label || {working:'Working',done:'Complete · unread',idle:'On a break ☕',waiting:'Needs your input',unknown:liveMode&&!liveConnected?'Reconnecting…':'Status unavailable',error:'Error',unassigned:'No pinned task'}[a.state] || 'Status unavailable';
           for (const el of [a.station,a.key]) {
             el.dataset.state=a.state; el.setAttribute('aria-pressed',String(i===selected));
             el.setAttribute('aria-label',`${a.keyNumber} · ${a.displayTitle}, ${stateLabel}${watching?', '+watching.note:''}${i===selected?', selected in office':''}`);
@@ -778,7 +780,7 @@
           renderJobBoard(snapshot && snapshot.jobBoard, snapshot.connected?snapshot.slots:null);
           const tag=root.querySelector('.office-tag');
           const items=snapshot.connected && Array.isArray(snapshot.slots)?snapshot.slots:null;
-          tag.textContent=items?'Live · local task activity':'Disconnected · activity unavailable';
+          tag.textContent=items?'Live · local task activity':'Reconnecting… · live feed interrupted';
           if(!items) {
             clearCommunications();
             agents.forEach(a=>{a.runId++;a.state=a.threadId?'unknown':'unassigned';a.moving=false;a.location='home';a.robot.hidden=!a.threadId;a.robot.dataset.walking='false';position(a,spot(a,'home'));});

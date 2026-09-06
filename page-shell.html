@@ -30,24 +30,61 @@
       document.documentElement.dataset.presentation=String(presentation);
       if(presentation) document.title='Agent Office — presentation';
       office.agentOffice.applySnapshot({connected:false,slots:[]});
-      let pollTimer;
+      let pollTimer=null, activeRequest=null, suspended=false;
+      function showDisconnected() {
+        office.agentOffice.applySnapshot({connected:false,slots:[]});
+        document.getElementById('local-watch-note').textContent='';
+      }
       async function refresh() {
+        clearTimeout(pollTimer); pollTimer=null;
+        if(suspended || document.hidden || activeRequest) return;
+        // One request and one next-poll timer per visible page. A request owns
+        // its result only until pause() aborts it; late results cannot repaint
+        // a restored page or start a second polling loop.
+        const request={controller:new AbortController(),timeout:null};
+        activeRequest=request;
+        request.timeout=setTimeout(()=>request.controller.abort(),4000);
+        const current=()=>activeRequest===request && !suspended && !document.hidden;
         try {
-          const response=await fetch(presentation?'/api/state?presentation=1':'/api/state',{cache:'no-store',signal:AbortSignal.timeout(4000)});
+          const response=await fetch(presentation?'/api/state?presentation=1':'/api/state',{cache:'no-store',signal:request.controller.signal});
           if(!response.ok) throw new Error('Activity source unavailable');
           const snapshot=await response.json();
+          if(!current()) return;
+          if(request.controller.signal.aborted) throw new Error('Activity request timed out');
+          if(!snapshot || typeof snapshot.connected!=='boolean' || !Array.isArray(snapshot.slots)) throw new Error('Invalid activity snapshot');
           office.agentOffice.applySnapshot(snapshot);
           const watch=snapshot.managerWatch;
           const watchNote=document.getElementById('local-watch-note');
           watchNote.textContent=!watch?'':watch.status==='paused-error'?'Local manager watch needs attention—automatic rounds are paused.':watch.status==='unavailable'?'Local manager watch is waiting for reliable activity.':watch.status==='configuration-changed'||watch.status==='disabled'?'Local manager watch is disabled.':'Local manager watch · idle checks use no AI.';
         } catch(_error) {
-          office.agentOffice.applySnapshot({connected:false,slots:[]});
-          document.getElementById('local-watch-note').textContent='';
+          if(current()) showDisconnected();
+        } finally {
+          clearTimeout(request.timeout);
+          if(activeRequest===request) {
+            activeRequest=null;
+            if(!suspended && !document.hidden) pollTimer=setTimeout(refresh,1000);
+          }
         }
-        pollTimer=setTimeout(refresh,1000);
       }
-      refresh();
-      window.addEventListener('pagehide',()=>clearTimeout(pollTimer),{once:true});
+      function pause() {
+        suspended=true;
+        clearTimeout(pollTimer); pollTimer=null;
+        const request=activeRequest; activeRequest=null;
+        if(request) { clearTimeout(request.timeout); request.controller.abort(); }
+      }
+      function resume() {
+        if(document.hidden) return;
+        if(suspended) showDisconnected();
+        suspended=false;
+        refresh();
+      }
+      // Safari can restore this exact document from its back/forward cache.
+      // These listeners must survive every hide/show cycle, not just the first.
+      window.addEventListener('pagehide',pause);
+      window.addEventListener('pageshow',resume);
+      window.addEventListener('online',resume);
+      document.addEventListener('visibilitychange',()=>document.hidden?pause():resume());
+      resume();
     })();
   </script>
 </body>

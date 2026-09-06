@@ -168,7 +168,7 @@ function boardFixture() {
 test('neon OPEN sign follows live work, not unread results or waiting approvals',()=>{
   const h=office({reduced:true}),sign=h.root.querySelector('.open-sign');
   h.root.agentOffice.applySnapshot({connected:false,slots:[]});
-  assert.equal(sign.querySelector('small').textContent,'Status unavailable','initial disconnect is not an empty office');
+  assert.equal(sign.querySelector('small').textContent,'Reconnecting…','initial disconnect is not an empty office');
   h.snapshot([],['idle','working','idle','idle','idle','idle']);
   assert.equal(sign.dataset.open,'true');assert.equal(sign.querySelector('small').textContent,'Agents at work');
   h.snapshot([],['idle','done','waiting','idle','idle','idle']);
@@ -176,7 +176,7 @@ test('neon OPEN sign follows live work, not unread results or waiting approvals'
   h.snapshot([],['working','idle','idle','idle','idle','idle']);
   assert.equal(sign.dataset.open,'true','manager direct work also lights the sign');
   h.root.agentOffice.applySnapshot({connected:false,slots:[]});
-  assert.equal(sign.dataset.open,'false');assert.equal(sign.querySelector('small').textContent,'Status unavailable');
+  assert.equal(sign.dataset.open,'false');assert.equal(sign.querySelector('small').textContent,'Reconnecting…');
 });
 function applyBoard(h,state,board=boardFixture(),connected=true,key=1) {
   h.root.agentOffice.applySnapshot({connected,slots:[{avatar:0,key,id:'manager',title:'Scout',state}],jobBoard:board});
@@ -189,7 +189,7 @@ test('whiteboard without an assignment follows live activity through each transi
     ['working','working','Active · no project assignment listed','Working'],
     ['waiting','waiting','Needs your input or approval','Needs you'],
     ['done','done','Response complete · unread','Complete'],
-    ['idle','ready','Ready for the next assignment','Ready'],
+    ['idle','ready','On a break ☕ · ready for the next assignment','On a break'],
     ['error','error','Task reported an error','Error'],
     ['unknown','unknown','Activity status unavailable','Unavailable'],
     ['working','working','Active · no project assignment listed','Working']
@@ -211,8 +211,8 @@ test('whiteboard keeps explicitly tracked assignments and stages',()=>{
 test('disconnect, missing slots, unknown states and unpinned agents never imply readiness',()=>{
   const h=office({reduced:true,board:true});
   applyBoard(h,'working');
-  assert.equal(applyBoard(h,'idle',boardFixture(),false).chip,'Unavailable');
-  assert.equal(h.root.querySelector('.room-board-count').textContent,'Status unavailable');
+  assert.equal(applyBoard(h,'idle',boardFixture(),false).chip,'Reconnecting…');
+  assert.equal(h.root.querySelector('.room-board-count').textContent,'Reconnecting…');
   assert.equal(applyBoard(h,undefined).chip,'Unavailable');
   assert.equal(applyBoard(h,'unrecognized').chip,'Unavailable');
   assert.equal(applyBoard(h,'idle',boardFixture(),true,2).chip,'Unavailable');
@@ -286,11 +286,30 @@ test('disconnect, absent watch and private presentation clear manager details',(
   const h=office({reduced:true,board:true});watchSnapshot(h);
   h.root.agentOffice.applySnapshot({connected:false,slots:[]});
   assert.equal(h.stations()[0].querySelector('.manager-check').hidden,true);
-  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Status unavailable');
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Reconnecting…');
   applyBoard(h,'idle');
-  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Idle');
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'On a break ☕');
   watchSnapshot(h);
   h.root.agentOffice.applySnapshot({connected:true,slots:[{avatar:0,key:1,id:'presentation-slot-1',title:'Agent 1',state:'idle'}],jobBoard:{presentation:true}});
   assert.equal(h.stations()[0].querySelector('.manager-check').hidden,true);
-  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Idle');
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'On a break ☕');
+});
+
+test('break labels require confirmed idle; reconnection never disguises unknown activity',()=>{
+  const h=office({reduced:true,board:true}),sign=h.root.querySelector('.open-sign');
+  applyBoard(h,'idle');
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'On a break ☕');
+  assert.match(h.stations()[0].attributes['aria-label'],/On a break ☕/);
+  applyBoard(h,'unknown');
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Status unavailable');
+  assert.equal(sign.querySelector('small').textContent,'Status unavailable');
+  applyBoard(h,'idle',boardFixture(),false);
+  assert.equal(h.stations()[0].dataset.state,'unknown');
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Reconnecting…');
+  assert.equal(sign.attributes['aria-label'],'Office reconnecting');
+  assert.equal(h.root.querySelector('.office-tag').textContent,'Reconnecting… · live feed interrupted');
+  assert.equal(h.root.querySelector('.job-list').children[0].querySelector('.job-title').textContent,'Live connection interrupted');
+  applyBoard(h,'working');
+  assert.equal(h.stations()[0].querySelector('.station-state').textContent,'Working');
+  assert.equal(sign.dataset.open,'true');
 });
