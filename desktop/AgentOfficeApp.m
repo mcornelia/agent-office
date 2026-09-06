@@ -8,6 +8,7 @@ typedef void (^ControllerCompletion)(BOOL success, NSString *output);
 @property(nonatomic, strong) NSWindow *window;
 @property(nonatomic, strong) WKWebView *webView;
 @property(nonatomic, strong) NSMenuItem *serverItem;
+@property(nonatomic, strong) NSMenuItem *stopServerItem;
 @property(nonatomic, strong) NSMenuItem *loginItem;
 @property(nonatomic) BOOL revealWhenLoaded;
 @end
@@ -71,7 +72,8 @@ typedef void (^ControllerCompletion)(BOOL success, NSString *output);
     self.loginItem = [self menuItem:@"Start at Login" action:@selector(toggleLogin:) key:@""];
     [menu addItem:self.loginItem];
     [menu addItem:[self menuItem:@"Open Server Log" action:@selector(openLog:) key:@"l"]];
-    [menu addItem:[self menuItem:@"Stop Local Server" action:@selector(stopServer:) key:@""]];
+    self.stopServerItem = [self menuItem:@"Stop Local Server" action:@selector(stopServer:) key:@""];
+    [menu addItem:self.stopServerItem];
     [menu addItem:[NSMenuItem separatorItem]];
     [menu addItem:[self menuItem:@"Quit Agent Office" action:@selector(quit:) key:@"q"]];
     self.statusItem.menu = menu;
@@ -202,8 +204,11 @@ didFailProvisionalNavigation:(WKNavigation *)navigation
 
 - (void)refreshServerStatus {
     [self runController:@[@"status"] completion:^(BOOL success, NSString *output) {
-        self.serverItem.title = success && [output containsString:@"\"running\": true"]
-            ? @"Server: running locally" : @"Server: stopped";
+        BOOL running = success && [output containsString:@"\"running\": true"];
+        BOOL owned = success && [output containsString:@"\"owned\": true"];
+        self.serverItem.title = running ? (owned ? @"Server: running locally" : @"Server: running at login")
+                                        : @"Server: stopped";
+        self.stopServerItem.enabled = running && owned;
     }];
 }
 
@@ -236,10 +241,15 @@ didFailProvisionalNavigation:(WKNavigation *)navigation
 
 - (void)openLog:(id)sender {
     (void)sender;
+    NSURL *logs = [[[NSFileManager defaultManager] homeDirectoryForCurrentUser]
+        URLByAppendingPathComponent:@"Library/Logs/Agent Office" isDirectory:YES];
+    NSURL *serviceLog = [logs URLByAppendingPathComponent:@"agent-office.err.log"];
     NSURL *support = [[[NSFileManager defaultManager] homeDirectoryForCurrentUser]
         URLByAppendingPathComponent:@"Library/Application Support/Agent Office" isDirectory:YES];
     NSURL *log = [support URLByAppendingPathComponent:@"server.log"];
-    if ([[NSFileManager defaultManager] fileExistsAtPath:log.path]) {
+    if ([[NSFileManager defaultManager] fileExistsAtPath:serviceLog.path]) {
+        [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[serviceLog]];
+    } else if ([[NSFileManager defaultManager] fileExistsAtPath:log.path]) {
         [[NSWorkspace sharedWorkspace] activateFileViewerSelectingURLs:@[log]];
     } else {
         [[NSWorkspace sharedWorkspace] openURL:support];
@@ -249,14 +259,16 @@ didFailProvisionalNavigation:(WKNavigation *)navigation
 - (void)stopServer:(id)sender {
     (void)sender;
     [self runController:@[@"stop"] completion:^(BOOL success, NSString *output) {
-        self.serverItem.title = success ? @"Server: stopped" : @"Server: stop failed";
-        if (!success) {
+        BOOL stopped = success && [output containsString:@"\"stopped\": true"];
+        self.serverItem.title = stopped ? @"Server: stopped" : @"Server: still running";
+        if (!stopped) {
             NSAlert *alert = [[NSAlert alloc] init];
             alert.messageText = @"Agent Office server was left running";
             alert.informativeText = output;
             alert.alertStyle = NSAlertStyleWarning;
             [alert runModal];
         }
+        [self refreshServerStatus];
     }];
 }
 

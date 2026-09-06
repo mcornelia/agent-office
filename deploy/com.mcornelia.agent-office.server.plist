@@ -7,6 +7,7 @@
   <array>
     <string>/usr/bin/python3</string>
     <string>REPOSITORY_PATH/server.py</string>
+    <string>--codex-dir</string><string>CODEX_PATH</string>
     <string>--port</string><string>4319</string>
     <string>--public-host</string><string>glyph.local:4318</string>
     <string>--roster-path</string><string>REPOSITORY_PATH/manager/team.json</string>
@@ -17,6 +18,7 @@
   <key>KeepAlive</key><true/>
   <key>ProcessType</key><string>Background</string>
   <key>ThrottleInterval</key><integer>5</integer>
+  <key>Umask</key><integer>63</integer>
   <key>StandardOutPath</key><string>LOG_PATH/agent-office.out.log</string>
   <key>StandardErrorPath</key><string>LOG_PATH/agent-office.err.log</string>
 </dict>
