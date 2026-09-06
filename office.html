@@ -108,7 +108,8 @@
     #agent-office .job-list { display:grid; gap:6px; }
     #agent-office .job-row { width:100%; min-width:0; display:grid; grid-template-columns:minmax(98px,.7fr) minmax(0,1.7fr) auto; align-items:center; gap:9px; padding:8px 9px; border:1px solid var(--office-line); border-left:5px solid var(--office-blue); border-radius:7px; background:light-dark(#faf8f1,#2c3a30); color:inherit; font:inherit; text-align:left; cursor:pointer; }
     #agent-office .job-row[data-stage="waiting"] { border-left-color:light-dark(#bc7b16,#edb450); }
-    #agent-office .job-row[data-stage="testing"] { border-left-color:var(--office-green); }
+    #agent-office .job-row[data-stage="testing"],#agent-office .job-row[data-stage="done"] { border-left-color:var(--office-green); }
+    #agent-office .job-row[data-stage="error"] { border-left-color:light-dark(#cf4245,#ff827c); }
     #agent-office .job-row[data-stage="unknown"],#agent-office .job-row[data-stage="ready"] { border-left-color:var(--office-line); }
     #agent-office .job-agent { font-size:12px; font-weight:700; overflow-wrap:anywhere; }
     #agent-office .job-title { min-width:0; color:var(--office-muted); font-size:12px; overflow-wrap:anywhere; }
@@ -419,7 +420,11 @@
         agent.station.classList.add('is-spotlit');
         spotlightTimer=setTimeout(()=>agent.station.classList.remove('is-spotlit'),1200);
       }
-      function renderJobBoard(board) {
+      function renderJobBoard(board, slots) {
+        // Use this snapshot's live slots, never the previous frame's characters.
+        const liveSlots=Array.isArray(slots)?slots:null;
+        const slotByKey=new Map((liveSlots || []).filter(slot=>slot && Number.isInteger(slot.key)).map(slot=>[slot.key,slot]));
+        roomBoard.textContent=liveSlots?`${liveSlots.filter(slot=>slot?.state==='working').length} active`:'Status unavailable';
         // The rounds controller has a deliberately tiny DOM harness in tests;
         // board rendering is optional in that isolated scene.
         if(!jobHub) return;
@@ -443,15 +448,27 @@
         const agentById=new Map(boardAgents.map(agent=>[agent.id,agent]));
         boardList.replaceChildren();
         const stageLabels={researching:'Researching',building:'Building',testing:'Testing',waiting:'Waiting',unknown:'Stage unknown'};
+        const activityLabels={
+          working:{stage:'working',title:'Active · no project assignment listed',chip:'Working'},
+          idle:{stage:'ready',title:'Ready for the next assignment',chip:'Ready'},
+          done:{stage:'done',title:'Response complete · unread',chip:'Complete'},
+          waiting:{stage:'waiting',title:'Needs your input or approval',chip:'Needs you'},
+          error:{stage:'error',title:'Task reported an error',chip:'Error'},
+          unknown:{stage:'unknown',title:'Activity status unavailable',chip:'Unavailable'}
+        };
         for(const item of boardAgents) {
           const assignment=item.assignment && typeof item.assignment==='object'?item.assignment:null;
-          const stage=assignment?.stage || 'ready';
+          const activity=slotByKey.get(item.key)?.state;
+          let fallback=activityLabels[activity] || activityLabels.unknown;
+          // A missing/stale ledger cannot establish that an idle agent is free.
+          if(activity==='idle' && (!source.available || stale)) fallback={stage:'unknown',title:'Current assignment unavailable',chip:'Unknown'};
+          const stage=assignment?(assignment.stage || 'unknown'):fallback.stage;
           const row=document.createElement('button'); row.type='button'; row.className='job-row'; row.dataset.stage=stage;
           const identity=document.createElement('span'); identity.className='job-agent';
           identity.textContent=`${Number.isInteger(item.key)?item.key+' · ':''}${item.label || 'Agent'}`;
           const title=document.createElement('span'); title.className='job-title';
-          title.textContent=assignment?.title || 'Ready for the next assignment';
-          const chip=document.createElement('span'); chip.className='stage-chip'; chip.textContent=stageLabels[stage] || 'Ready';
+          title.textContent=assignment?(assignment.title || 'Tracked assignment'):fallback.title;
+          const chip=document.createElement('span'); chip.className='stage-chip'; chip.textContent=assignment?(stageLabels[stage] || 'Stage unknown'):fallback.chip;
           row.append(identity,title,chip);
           if(Number.isInteger(item.key)) {
             row.addEventListener('click',()=>selectKey(item.key));
@@ -508,7 +525,6 @@
           folder.addEventListener('click',()=>showResult(result.id)); folders.append(folder);
         }
         showResult(selectedResultId);
-        roomBoard.textContent=`${boardAgents.filter(item=>item.assignment).length} active`;
       }
       function render() {
         agents.forEach((a,i) => {
@@ -709,7 +725,7 @@
         applySnapshot(snapshot) {
           liveMode=true;
           input.hidden=true; send.hidden=true;
-          renderJobBoard(snapshot && snapshot.jobBoard);
+          renderJobBoard(snapshot && snapshot.jobBoard, snapshot.connected?snapshot.slots:null);
           const tag=root.querySelector('.office-tag');
           const items=snapshot.connected && Array.isArray(snapshot.slots)?snapshot.slots:null;
           tag.textContent=items?'Live · local task activity':'Disconnected · activity unavailable';

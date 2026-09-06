@@ -91,7 +91,7 @@ test('an interrupted scene releases animation ownership and permits the next vis
 });
 
 // A minimal DOM and virtual clock exercise the whole office, including snapshot/motion ownership.
-function office({reduced=false}={}) {
+function office({reduced=false,board=false}={}) {
   let now=1000000,seq=0;const timers=new Map(),elements=[];
   const schedule=(fn,delay=0)=>{const id=++seq;timers.set(id,{fn,at:now+delay});return id;};
   class Element {
@@ -101,6 +101,7 @@ function office({reduced=false}={}) {
     setAttribute(k,v){this.attributes[k]=v;}
     addEventListener(){}
     querySelector(selector){const match=e=>selector.startsWith('.')?e.className.split(' ').includes(selector.slice(1)):e.tag===selector;for(const child of this.children){if(match(child))return child;const nested=child.querySelector(selector);if(nested)return nested;}return null;}
+    querySelectorAll(selector){const match=e=>selector.startsWith('.')?e.className.split(' ').includes(selector.slice(1)):e.tag===selector;return this.children.flatMap(child=>[...(match(child)?[child]:[]),...child.querySelectorAll(selector)]);}
     set innerHTML(value){this.children=[];for(const match of value.matchAll(/<(\w+)[^>]*class="([^"]+)"/g))this.append(new Element(match[1],match[2]));}
     getBoundingClientRect(){let left=0,top=0,width=840,height=560;
       if(this.className==='station'){const i=stations().indexOf(this),slot=[[1,0],[2,0],[0,1],[1,1],[2,1],[3,1]][i];left=20+slot[0]*200;top=84+slot[1]*286;width=190;height=222;}
@@ -112,6 +113,10 @@ function office({reduced=false}={}) {
   const root=new Element(),windowEl=new Element('div','office-window'),room=new Element('div','office-room');root.append(windowEl);windowEl.append(room);
   room.append(new Element('div','office-desks'));
   for(const cls of ['keypad','task-input','compose-title','send-task','selection-detail','office-tag'])windowEl.append(new Element('div',cls));windowEl.append(new Element('form'));
+  if(board) {
+    const hub=new Element('section','job-hub');windowEl.append(hub);
+    for(const cls of ['job-list','board-health','needs-list','needs-count','folders','results-count','result-detail'])hub.append(new Element('div',cls));
+  }
   const stations=()=>elements.filter(e=>e.className==='station');
   const robots=()=>stations().map((_,i)=>elements.find(e=>e.className===`robot robot-${i+1}`));
   const motion={matches:reduced,addEventListener:(_,fn)=>motion.change=fn};
@@ -154,4 +159,62 @@ test('manager needing input retains amber state and stationary speech fallback',
   assert.equal(h.bubbles().length,2);assert.equal(h.robots()[0].dataset.state,'waiting');
   assert.equal(h.robots()[0].dataset.walking,'false');
   await h.advance(4500);assert.equal(h.robots()[0].dataset.rounds,'false');
+});
+
+function boardFixture() {
+  return {source:{available:true,stale:false},agents:[{id:'safe-manager',label:'Scout',key:1,assignment:null}],needsYou:[],results:[]};
+}
+function applyBoard(h,state,board=boardFixture(),connected=true,key=1) {
+  h.root.agentOffice.applySnapshot({connected,slots:[{avatar:0,key,id:'manager',title:'Scout',state}],jobBoard:board});
+  const row=h.root.querySelector('.job-list').children[0];
+  return {stage:row.dataset.stage,title:row.querySelector('.job-title').textContent,chip:row.querySelector('.stage-chip').textContent};
+}
+test('whiteboard without an assignment follows live activity through each transition',()=>{
+  const h=office({reduced:true,board:true});
+  for(const [state,stage,title,chip] of [
+    ['working','working','Active · no project assignment listed','Working'],
+    ['waiting','waiting','Needs your input or approval','Needs you'],
+    ['done','done','Response complete · unread','Complete'],
+    ['idle','ready','Ready for the next assignment','Ready'],
+    ['error','error','Task reported an error','Error'],
+    ['unknown','unknown','Activity status unavailable','Unavailable'],
+    ['working','working','Active · no project assignment listed','Working']
+  ]) {
+    assert.deepEqual(applyBoard(h,state),{stage,title,chip});
+    assert.equal(h.root.querySelector('.room-board-count').textContent,state==='working'?'1 active':'0 active');
+    assert.equal(h.robots()[0].dataset.state,state);
+    assert.ok(h.root.querySelector('.job-list').children[0].attributes['aria-label'].includes(title));
+  }
+});
+test('whiteboard keeps explicitly tracked assignments and stages',()=>{
+  const h=office({reduced:true,board:true}),board=boardFixture();
+  board.agents[0].assignment={title:'Office fixes',stage:'testing'};
+  assert.deepEqual(applyBoard(h,'working',board),{stage:'testing',title:'Office fixes',chip:'Testing'});
+  assert.equal(h.root.querySelector('.room-board-count').textContent,'1 active');
+  assert.equal(applyBoard(h,'idle',board).title,'Office fixes');
+  assert.equal(h.root.querySelector('.room-board-count').textContent,'0 active');
+});
+test('disconnect, missing slots, unknown states and unpinned agents never imply readiness',()=>{
+  const h=office({reduced:true,board:true});
+  applyBoard(h,'working');
+  assert.equal(applyBoard(h,'idle',boardFixture(),false).chip,'Unavailable');
+  assert.equal(h.root.querySelector('.room-board-count').textContent,'Status unavailable');
+  assert.equal(applyBoard(h,undefined).chip,'Unavailable');
+  assert.equal(applyBoard(h,'unrecognized').chip,'Unavailable');
+  assert.equal(applyBoard(h,'idle',boardFixture(),true,2).chip,'Unavailable');
+});
+test('stale or unavailable assignment data cannot declare an idle agent ready',()=>{
+  const h=office({reduced:true,board:true});
+  for(const source of [{available:true,stale:true},{available:false,stale:false}]) {
+    const board=boardFixture();board.source=source;
+    assert.equal(applyBoard(h,'idle',board).title,'Current assignment unavailable');
+    assert.equal(applyBoard(h,'working',board).chip,'Working');
+  }
+});
+test('presentation hides board details and absent board data stays unavailable',()=>{
+  const h=office({reduced:true,board:true});
+  h.root.agentOffice.applySnapshot({connected:true,slots:[],jobBoard:{presentation:true}});
+  assert.equal(h.root.querySelector('.job-hub').hidden,true);
+  h.root.agentOffice.applySnapshot({connected:false,slots:[]});
+  assert.equal(h.root.querySelector('.board-health').textContent,'Unavailable');
 });
