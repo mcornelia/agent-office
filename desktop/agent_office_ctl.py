@@ -151,6 +151,9 @@ def ensure_server(root, support_dir, codex_dir, port=DEFAULT_PORT, python="/usr/
         roster = _source_roster(root)
         if roster:
             command.extend(["--roster-path", str(roster)])
+        gate_config = paths["root"] / "manager-gate.json"
+        if gate_config.is_file():
+            command.extend(["--manager-gate-config", str(gate_config)])
         for host in public_hosts:
             command.extend(["--public-host", host])
         try:

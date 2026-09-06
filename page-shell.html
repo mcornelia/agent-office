@@ -22,7 +22,7 @@
 </head>
 <body>
   <main><!--AGENT_OFFICE--></main>
-  <p class="connection-note">Live task activity from this Mac. Use the Creator Micro’s pinned-task controls in Codex. Office selection is independent; amber means the task needs your input or approval.</p>
+  <p class="connection-note">Live task activity from this Mac. The OPEN sign glows while an agent is working; amber desks need your input or approval. <span id="local-watch-note"></span></p>
   <script>
     (() => {
       const office=document.getElementById('agent-office');
@@ -35,9 +35,14 @@
         try {
           const response=await fetch(presentation?'/api/state?presentation=1':'/api/state',{cache:'no-store',signal:AbortSignal.timeout(4000)});
           if(!response.ok) throw new Error('Activity source unavailable');
-          office.agentOffice.applySnapshot(await response.json());
+          const snapshot=await response.json();
+          office.agentOffice.applySnapshot(snapshot);
+          const watch=snapshot.managerWatch;
+          const watchNote=document.getElementById('local-watch-note');
+          watchNote.textContent=!watch?'':watch.status==='paused-error'?'Local manager watch needs attention—automatic rounds are paused.':watch.status==='unavailable'?'Local manager watch is waiting for reliable activity.':watch.status==='configuration-changed'||watch.status==='disabled'?'Local manager watch is disabled.':'Local manager watch · idle checks use no AI.';
         } catch(_error) {
           office.agentOffice.applySnapshot({connected:false,slots:[]});
+          document.getElementById('local-watch-note').textContent='';
         }
         pollTimer=setTimeout(refresh,1000);
       }

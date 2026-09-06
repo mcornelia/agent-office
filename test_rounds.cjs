@@ -112,6 +112,7 @@ function office({reduced=false,board=false}={}) {
   }
   const root=new Element(),windowEl=new Element('div','office-window'),room=new Element('div','office-room');root.append(windowEl);windowEl.append(room);
   room.append(new Element('div','office-desks'));
+  const sign=new Element('div','open-sign');sign.append(new Element('small'));room.append(sign);
   for(const cls of ['keypad','task-input','compose-title','send-task','selection-detail','office-tag'])windowEl.append(new Element('div',cls));windowEl.append(new Element('form'));
   if(board) {
     const hub=new Element('section','job-hub');windowEl.append(hub);
@@ -164,6 +165,19 @@ test('manager needing input retains amber state and stationary speech fallback',
 function boardFixture() {
   return {source:{available:true,stale:false},agents:[{id:'safe-manager',label:'Scout',key:1,assignment:null}],needsYou:[],results:[]};
 }
+test('neon OPEN sign follows live work, not unread results or waiting approvals',()=>{
+  const h=office({reduced:true}),sign=h.root.querySelector('.open-sign');
+  h.root.agentOffice.applySnapshot({connected:false,slots:[]});
+  assert.equal(sign.querySelector('small').textContent,'Status unavailable','initial disconnect is not an empty office');
+  h.snapshot([],['idle','working','idle','idle','idle','idle']);
+  assert.equal(sign.dataset.open,'true');assert.equal(sign.querySelector('small').textContent,'Agents at work');
+  h.snapshot([],['idle','done','waiting','idle','idle','idle']);
+  assert.equal(sign.dataset.open,'false');assert.equal(sign.querySelector('small').textContent,'Off duty');
+  h.snapshot([],['working','idle','idle','idle','idle','idle']);
+  assert.equal(sign.dataset.open,'true','manager direct work also lights the sign');
+  h.root.agentOffice.applySnapshot({connected:false,slots:[]});
+  assert.equal(sign.dataset.open,'false');assert.equal(sign.querySelector('small').textContent,'Status unavailable');
+});
 function applyBoard(h,state,board=boardFixture(),connected=true,key=1) {
   h.root.agentOffice.applySnapshot({connected,slots:[{avatar:0,key,id:'manager',title:'Scout',state}],jobBoard:board});
   const row=h.root.querySelector('.job-list').children[0];

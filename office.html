@@ -17,6 +17,10 @@
     #agent-office .window-view { position:relative; width:26%; height:46px; border:5px solid var(--office-panel); background:linear-gradient(160deg,light-dark(#c9dee0,#466572) 0 67%,light-dark(#95ac8e,#344b37) 68%); box-shadow:2px 3px 0 var(--office-shadow); }
     #agent-office .window-view:after { content:""; position:absolute; left:48%; width:4px; height:100%; background:var(--office-panel); }
     #agent-office .wall-sign { text-align:center; color:var(--office-muted); letter-spacing:.18em; font-size:11px; padding:0 10px; }
+    #agent-office .open-sign { position:relative; min-width:114px; padding:5px 13px 6px; border:2px solid #42574e; border-radius:13px; background:#15221c; color:#62786c; font:700 23px/1.1 ui-monospace,monospace; letter-spacing:.17em; text-align:center; box-shadow:inset 0 0 0 3px #101a15; transition:color .3s,border-color .3s,box-shadow .3s; }
+    #agent-office .open-sign::before { content:""; position:absolute; height:12px; border-left:1px solid #62786c; border-right:1px solid #62786c; left:20%; right:20%; top:-14px; }
+    #agent-office .open-sign[data-open="true"] { color:#baffd8; border-color:#67eaa3; text-shadow:0 0 4px #6df4a9,0 0 13px #42e48b; box-shadow:inset 0 0 9px #42e48b38,0 0 8px #42e48b90,0 0 24px #42e48b50; }
+    #agent-office .open-sign small { display:block; margin-top:4px; color:#b7c9bf; font:10px/1.2 ui-sans-serif,system-ui,sans-serif; letter-spacing:.02em; text-shadow:none; }
     #agent-office .office-desks { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-areas:'whiteboard key1 key2 coffee' 'key3 key4 key5 key6'; column-gap:10px; row-gap:64px; }
     #agent-office .station { position:relative; min-height:222px; min-width:0; border:0; padding:0 0 6px; background:transparent; color:inherit; font:inherit; cursor:pointer; border-radius:10px; display:flex; flex-direction:column; }
     #agent-office .station[aria-pressed="true"] { background:light-dark(#ffffff42,#ffffff08); }
@@ -190,7 +194,7 @@
   <div class="office-window" data-cozy="true">
     <div class="office-header"><span class="office-brand">THE AGENT OFFICE</span><span class="office-tag">Preview · example activity</span></div>
     <div class="office-room">
-      <div class="back-wall" aria-hidden="true"><div class="window-view"></div><div class="wall-sign">SIX DESKS<br>ONE TEAM</div><div class="window-view"></div></div>
+      <div class="back-wall"><div class="window-view" aria-hidden="true"></div><div class="open-sign" data-open="false" role="status" aria-live="polite" aria-label="Office status unavailable">OPEN<small>Status unavailable</small></div><div class="window-view" aria-hidden="true"></div></div>
       <div class="office-desks" aria-label="Agent desks"></div>
     </div>
     <section class="job-hub" aria-label="Agent work and results">
@@ -263,6 +267,7 @@
       const agents = roster.map((displayTitle,i)=>({ ...splitPinnedName(displayTitle), displayTitle, index:i, keyNumber:i+1, task:tasks[i], state:'idle', stage:'Ready for a task', position:null, location:'home', moving:false, runId:0, threadId:null }));
       let selected = 0;
       let liveMode = false;
+      let liveConnected = false;
       const appearance = { cozy:true, pace:'Relaxed' };
       deskArea.append(whiteboardSpace);
       agents.forEach((a,i) => {
@@ -527,6 +532,15 @@
         showResult(selectedResultId);
       }
       function render() {
+        const sign=root.querySelector('.open-sign');
+        if(sign) {
+          const working=(!liveMode||liveConnected)&&agents.some(a=>a.state==='working');
+          const unknown=(liveMode&&!liveConnected)||agents.some(a=>a.state==='unknown');
+          const status=working?'Agents at work':unknown?'Status unavailable':'Off duty';
+          sign.dataset.open=String(working);
+          sign.setAttribute('aria-label',working?'Office open: agents at work':unknown?'Office status unavailable':'Office off duty: no active work');
+          sign.querySelector('small').textContent=status;
+        }
         agents.forEach((a,i) => {
           const stateLabel = {working:'Working',done:'Complete · unread',idle:'Idle',waiting:'Needs your input',unknown:'Status unavailable',error:'Error',unassigned:'No pinned task'}[a.state] || 'Status unavailable';
           for (const el of [a.station,a.key]) {
@@ -724,6 +738,7 @@
       root.agentOffice={
         applySnapshot(snapshot) {
           liveMode=true;
+          liveConnected=!!snapshot.connected;
           input.hidden=true; send.hidden=true;
           renderJobBoard(snapshot && snapshot.jobBoard, snapshot.connected?snapshot.slots:null);
           const tag=root.querySelector('.office-tag');

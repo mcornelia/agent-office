@@ -2,7 +2,7 @@
 """Read-only, loopback-only companion for local pinned Codex tasks.
 
 Uses observed local file formats, not a supported public desktop API.
-Never sends prompts, changes pins, or opens the keyboard.
+Never changes pins or opens the keyboard. Manager prompting is separately opt-in.
 """
 import argparse
 import json
@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlsplit
 from desktop_status import DesktopStatus, WAIT_FLAGS
 from communications import CommunicationFeed
 from job_board import JobBoardFeed
+from manager_gate import LocalManagerWatch
 
 ROOT = Path(__file__).resolve().parent
 MAX_TAIL = 8 * 1024 * 1024
@@ -136,6 +137,7 @@ class OfficeState:
         self.tails = {}
         self.lock = Lock()
         self.desktop_status = desktop_status
+        self.manager_watch = None
         self.roster_path = Path(roster_path) if roster_path else ROOT / 'manager' / 'team.json'
         self.communications = CommunicationFeed(self.codex_dir, self.roster_path)
         self.job_board = JobBoardFeed(self.roster_path)
@@ -252,6 +254,8 @@ class OfficeState:
                 # temporary Codex database or stream outage.
                 result = {"connected": False, "error": str(exc), "slots": [],
                           "jobBoard": self.job_board.snapshot([], {})}
+            if self.manager_watch:
+                result['managerWatch'] = self.manager_watch.status()
             return presentation_snapshot(result) if presentation else result
 
 
@@ -312,6 +316,8 @@ def main():
     parser.add_argument("--identity-path", type=Path, help="Private writable task-to-character assignment file")
     parser.add_argument("--roster-path", type=Path, help="Optional private manager roster used for generic activity bubbles")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--manager-gate-config", type=Path,
+                        help="Explicit opt-in private local manager watch configuration")
     parser.add_argument("--public-host", action="append", default=[],
                         help="Exact Host header accepted from a loopback TLS proxy")
     parser.add_argument("--inspect-thread", help="Read one local task's lifecycle for validation, without changing its pins")
@@ -340,12 +346,17 @@ def main():
         return
     server = ThreadingHTTPServer(("127.0.0.1", args.port), make_handler(state, args.port, args.public_host))
     desktop.start()
+    if args.manager_gate_config:
+        state.manager_watch = LocalManagerWatch(state, args.manager_gate_config)
+        state.manager_watch.start()
     print(f"Agent Office: http://127.0.0.1:{args.port} — Ctrl+C to stop", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        if state.manager_watch:
+            state.manager_watch.close()
         desktop.close()
         server.server_close()
 

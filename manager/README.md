@@ -59,3 +59,87 @@ python3 manager/read_task.py TASK_ID --turns 2
 The output is private: it may contain task requests, progress, names, and local paths. It distinguishes delegated input from direct user messages, marks truncation, and excludes reasoning and arbitrary tool output. Missing or truncated text does not establish authorization. The helper never sends messages and is not available through the office web server.
 
 Keep generated configuration and history out of commits. The repository's `.gitignore` excludes them by default.
+
+## Local gate: no AI calls while the office is idle
+
+The time-based heartbeat above is the simpler option, but it starts an AI turn
+even when there is nothing to do. The opt-in local gate replaces that timer with
+a Python status check every 15 seconds. No model, prompt, conversation text, or
+network service is needed to decide that the team is idle.
+
+- A new worker lifecycle/status change settles for 30 seconds before a round.
+- Active workers get at most one manager wake every ten minutes. Changes during
+  that cooldown are retained for the next round.
+- Completed work is checked once. Unchanged idle or approval-wait states do not
+  create further rounds. Brief jobs that finish between polls are still detected
+  through their completion timestamps.
+- Scout's own activity never triggers another Scout run. A busy or waiting
+  manager is not interrupted; pending worker changes wait until it is idle.
+- Startup takes a baseline of old idle history. Missing or uncertain live status
+  does not count as active work.
+
+When the desktop's optional status broadcast is unavailable, the gate uses
+explicit local start/completion/interruption events, not silence or file age, to
+identify work and a free manager. Old unfinished activity becomes unknown and
+cannot trigger a wake. Without runtime approval flags, an approval wait cannot
+be distinguished immediately from work; the uncertain fallback expires instead
+of continuing overnight rounds. The manager's desktop owner also enforces its
+normal no-overlapping-turn checks when a wake is submitted.
+
+Ask your manager to configure this mode explicitly. It must create an owner-only
+`manager-gate.json` file in the desktop app's private Application Support folder,
+with `enabled: true`, `managerThreadId` matching the private roster, and a `prompt`
+containing your existing bounded manager instructions. Never put private IDs or
+the resulting gate state in a public commit. The native launcher recognizes this
+file on its next server start. For a manually managed server, pass
+`--manager-gate-config /absolute/path/to/manager-gate.json` instead.
+
+After testing the gate, **pause the old heartbeat using the app's automation
+tool**. Do not leave both dispatchers enabled. The gate does not create, edit, or
+resume any app automations. Cloning the repository never enables it.
+
+The office server must remain running on an awake Mac, and ChatGPT/Codex must be
+running with the manager task available. Closing the office browser is fine.
+The desktop launcher keeps the local server running when its window closes.
+Use the existing optional Start at Login feature if you want it after login.
+
+### Safety and recovery
+
+This is an observed internal desktop protocol, checked against the September
+2026 app. It is not a public OpenAI scheduling API. The gate discovers the
+existing manager task owner and requests one turn there, inheriting its current
+model, workspace, and permissions. It does not launch a separate CLI agent,
+approve anything, or change task settings. HTTP remains read-only.
+
+Private `manager-gate-state.json` records the metadata baseline, local check time,
+wake count, and pending send marker. A file lock prevents duplicate gate
+processes. The pending marker is persisted before a send: a crash, timeout, or
+unknown response leaves dispatch paused. It never blindly retries a send.
+Successful acknowledgement is checked against the IPC envelope's request ID,
+method, success status, and discovered owner. The result does not repeat the
+method. Errors retain only a phase and exception type, not private response text.
+
+If the footer says the watch needs attention, inspect the manager task to see
+whether a turn arrived before rearming. Preserve the state file for diagnosis;
+do not simply delete it and retry. Correct the problem, clear only a verified
+failed/finished dispatch marker and error, and restart the local server. To
+disable the watch, set `enabled` to `false`; it stops at its next local poll.
+The paused heartbeat remains available as a manual rollback, but disable the
+local gate before enabling it again.
+
+If the request actually arrived, record it as handled (advance `wakeCount` and
+`lastWakeAt`, clear the consumed `pendingAt`, and mark installation verification
+complete when applicable). Keep evidence of the matching received turn in the
+private ledger. Do not reset the whole state: that could replay an already
+completed check. Clear associated `errorPhase`/`errorKind` only after review.
+
+For installation QA only, `verifyFirstWake: true` requests one smoke-test round
+after the manager becomes idle. Its completion marker is durable, so it cannot
+become an idle timer. Remove the option once the actual incoming manager turn
+has been verified. This one deliberate test uses AI tokens.
+
+Tests: `python3 -m unittest -v test_manager_gate.py` from the repository root.
+They include a simulated 12-hour idle night, quick completions, busy manager,
+waiting-only states, reconnect uncertainty, cooldown, private storage, and
+duplicate-send protection. Only actual manager and worker turns use AI tokens;
+this does not eliminate usage from other scheduled tasks on your account.

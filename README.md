@@ -56,6 +56,11 @@ These are example names. The live office uses your current pinned task names. Bo
 
 Movement illustrates activity; a walk to the whiteboard does not mean a particular tool is running. Reduced-motion preferences are respected.
 
+The neon **OPEN** sign lights up when at least one agent is working, including
+the manager. It goes dark when everyone is idle, finished, or waiting for input.
+If activity cannot be verified, the dark sign says **Status unavailable** rather
+than claiming the office is off duty. The sign itself uses no AI.
+
 ## Use the Creator Micro 2
 
 1. Enable the keyboard's native Codex layer and **Pinned chats** mapping.
@@ -72,6 +77,13 @@ The included [keyboard signal prototype](docs/keyboard-selection.md) confirms th
 The optional manager workflow lets an existing task inspect teammates, coordinate routine next steps on already-authorized jobs, and report meaningful results, blockers, and decisions. The viewer and manager run independently.
 
 See [manager setup](manager/README.md). Installing or running the viewer does not send prompts or create automations. Manager setup requires an explicit instruction in your chosen Codex task.
+
+An optional **local manager gate** checks activity without a model and requests a
+manager round only when workers change state or active work needs its ten-minute
+check. Idle overnight polling uses zero AI tokens. Actual manager rounds and
+worker tasks still use the account's normal allowance. This opt-in desktop
+integration uses observed internal IPC, not a supported public wake-up API; it
+stops automatic dispatch on an uncertain send instead of risking duplicates.
 
 When the configured manager checks the team, Scout carries a clipboard and walks to that teammate's desk before the animated speech bubbles appear. Follow-up messages have their own labels. Real check-ins queue one at a time, skip expired events, and return both characters to normal activity without exposing message text. Reduced-motion mode keeps the same information stationary.
 
@@ -115,6 +127,7 @@ python3 server.py --check
 | `communications.py` | Recent manager check and message metadata |
 | `job_board.py` | Privacy-filtered manager job, decision, and result projection |
 | `manager/` | Optional coordination brief, configuration, and context reader |
+| `manager_gate.py` | Opt-in, metadata-only local watcher and bounded manager wake-up |
 
 The standalone `office.html` scene has an example activity preview for interface development. `index.html` always connects to the local activity source.
 
