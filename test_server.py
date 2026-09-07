@@ -41,7 +41,7 @@ class OfficeTests(unittest.TestCase):
         self.assertEqual(tail.read()[0],'working')
         complete = event('task_complete')
         with path.open('ab') as f: f.write(complete[:25])
-        self.assertEqual(tail.read()[0],'working')
+        self.assertEqual(tail.read()[0],'unknown')  # Don't guess ahead of a partial record.
         with path.open('ab') as f: f.write(complete[25:])
         self.assertEqual(tail.read()[0],'complete')
 

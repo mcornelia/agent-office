@@ -117,6 +117,14 @@ It reads pinned-task metadata from a local SQLite database in read-only mode and
 
 `identities.json` stores local task-to-character assignments. The manager's roster, brief, and job ledger are also local. These files are excluded from Git. The manager's optional message-reading helper runs separately and is never exposed through HTTP.
 
+`activity-checkpoints.json` is a small, private restart bookmark beside the
+identity file (in Application Support for the desktop app). It stores lifecycle
+metadata and byte fingerprints for up to six histories—not messages. After a
+restart, the reader validates the original file and replays newer records before
+showing a status. Changed files, incomplete reads, and stale work remain unknown.
+It cannot authorize work, restore approval state, or alter send receipts.
+See [activity checkpoint behavior](docs/activity-checkpoints.md).
+
 **Compatibility:** the local database, session files, and desktop status stream use observed internal formats. Codex updates may require an adapter change. This version was checked with the macOS desktop app in September 2026; it is not a supported public Codex status API. Windows, remote tasks, and ChatGPT cloud tasks are not currently supported.
 
 If the desktop status stream has no record for a task, a fresh local `task_started` event can still show that task as working, but the office does not guess whether it is waiting for approval. That event fallback expires after five minutes; stale or missing activity shows as unavailable. Completed and idle session states can still be displayed. Keep the Mac and Codex running for live status and local manager checks.
@@ -164,6 +172,7 @@ python3 server.py --check
 | `page-shell.html` | Browser page and local activity polling |
 | `build_view.py` | Generates the committed `index.html` |
 | `server.py` | Read-only local HTTP server and activity mapping |
+| `activity_state.py` | Bounded lifecycle reader and private restart bookmarks |
 | `desktop_status.py` | Local desktop status subscription |
 | `communications.py` | Recent manager check and message metadata |
 | `job_board.py` | Privacy-filtered manager job, decision, and result projection |

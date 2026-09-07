@@ -1,6 +1,8 @@
 # Machine-specific task identities and manager history
 /identities.json
 /identities.tmp
+/activity-checkpoints.json
+/.activity-*.tmp
 /manager/team.json
 /manager/state.json
 /manager/foreground.json

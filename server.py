@@ -17,9 +17,9 @@ from desktop_status import DesktopStatus, WAIT_FLAGS
 from communications import CommunicationFeed
 from job_board import JobBoardFeed
 from manager_gate import LocalManagerWatch
+from activity_state import ActivityCheckpoints, EventTail, MAX_TAIL
 
 ROOT = Path(__file__).resolve().parent
-MAX_TAIL = 8 * 1024 * 1024
 SERVICE_NAME = "agent-office"
 
 
@@ -81,60 +81,15 @@ def presentation_snapshot(snapshot):
     }
 
 
-class EventTail:
-    def __init__(self, path):
-        self.path = Path(path)
-        self.offset = 0
-        self.inode = None
-        self.pending = b""
-        self.state = "unknown"
-        self.event_at = None
-
-    def read(self):
-        stat = self.path.stat()
-        if self.inode != stat.st_ino or stat.st_size < self.offset:
-            self.inode = stat.st_ino
-            self.offset = max(0, stat.st_size - MAX_TAIL)
-            self.pending = b""
-            self.state = "unknown"
-            self.event_at = None
-            skip_first = self.offset > 0
-        else:
-            skip_first = False
-        with self.path.open("rb") as stream:
-            stream.seek(self.offset)
-            chunk = stream.read(MAX_TAIL)
-            self.offset = stream.tell()
-        if skip_first:
-            chunk = chunk.partition(b"\n")[2]
-        lines = (self.pending + chunk).split(b"\n")
-        self.pending = lines.pop()
-        for line in lines:
-            try:
-                item = json.loads(line)
-            except (ValueError, UnicodeDecodeError):
-                continue
-            if item.get("type") != "event_msg":
-                continue
-            payload = item.get("payload", {})
-            event = payload.get("type")
-            states = {"task_started": "working", "task_complete": "complete", "turn_aborted": "interrupted", "error": "error"}
-            if event in states:
-                self.state = states[event]
-                self.event_at = item.get("timestamp")
-        # A quiet or abandoned old run must not remain blue indefinitely.
-        state = self.state
-        if state == "working" and time.time() - stat.st_mtime > 300:
-            state = "unknown"
-        return state, self.event_at
 
 
 class OfficeState:
-    def __init__(self, codex_dir, identity_path=None, desktop_status=None, roster_path=None):
+    def __init__(self, codex_dir, identity_path=None, desktop_status=None, roster_path=None, activity_path=None):
         self.codex_dir = Path(codex_dir).expanduser().resolve()
         self.identity_path = identity_path
         self.identities = {}
         self.tails = {}
+        self.activity_checkpoints = ActivityCheckpoints(activity_path)
         self.lock = Lock()
         self.desktop_status = desktop_status
         self.manager_watch = None
@@ -187,8 +142,8 @@ class OfficeState:
             path.relative_to(self.codex_dir / "sessions")
         except ValueError:
             raise RuntimeError("Task history is outside the local sessions directory")
-        key = (row["id"], str(path))
-        tail = self.tails.setdefault(key, EventTail(path))
+        key = self.activity_checkpoints.key(row["id"], path)
+        tail = self.tails.setdefault(key, EventTail(path, self.activity_checkpoints.entries.get(key)))
         return tail.read()
 
     def snapshot(self, presentation=False):
@@ -244,9 +199,10 @@ class OfficeState:
                     avatar = next(n for n in range(6) if n not in used)
                     used.add(avatar)
                     slots.append({"key": i+1, "id": None, "title": "No pinned task", "avatar": avatar, "state": "unassigned", "eventAt": None})
-                # Drop unused file readers; no transcript data is returned.
-                current_ids = {r["id"] for r in rows}
-                self.tails = {k: v for k, v in self.tails.items() if k[0] in current_ids}
+                # Keep only the current six histories; never cache transcripts.
+                current_keys = {self.activity_checkpoints.key(r['id'], Path(r['rollout_path']).resolve()) for r in rows}
+                self.tails = {k: v for k, v in self.tails.items() if k in current_keys}
+                self.activity_checkpoints.save({k: v.record for k, v in self.tails.items() if v.record})
                 result = {"connected": True, "source": "local Codex task events and desktop status", "selectionAvailable": False, "approvalStateAvailable": any(s.get('approvalStateAvailable') for s in slots), "observedAt": datetime.now(timezone.utc).isoformat(), "slots": slots, "communications": self.communications.snapshot(rows), "jobBoard": self.job_board.snapshot(slots, runtime_by_id)}
             except (OSError, ValueError, sqlite3.Error, RuntimeError) as exc:
                 # The manager ledger is independent of the desktop status
@@ -324,8 +280,9 @@ def main():
     args = parser.parse_args()
     desktop = DesktopStatus(args.codex_dir.expanduser().resolve())
     identity_path = args.identity_path.expanduser().resolve() if args.identity_path else ROOT / "identities.json"
+    activity_path = None if args.check or args.inspect_thread else identity_path.with_name('activity-checkpoints.json')
     roster_path = args.roster_path.expanduser().resolve() if args.roster_path else None
-    state = OfficeState(args.codex_dir, None if args.check or args.inspect_thread else identity_path, desktop, roster_path)
+    state = OfficeState(args.codex_dir, None if args.check or args.inspect_thread else identity_path, desktop, roster_path, activity_path)
     if args.inspect_thread:
         con = state.connect()
         try:
