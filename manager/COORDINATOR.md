@@ -15,7 +15,8 @@ It does not authorize creating more agents, changing models, or new project work
 
 ## One round
 
-1. Read the roster, your previous team ledger, and `foreground.json`. Identify
+1. Read [the project handbook](../AGENTS.md), the roster, your previous team
+   ledger, and `foreground.json`. Identify
    yourself by the roster, not a task name. Check the other five existing tasks
    using native task tools. Use compact wait snapshots and saved cursors. Never
    wait on yourself.

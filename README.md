@@ -113,6 +113,22 @@ If the desktop status stream has no record for a task, a fresh local `task_start
 
 ## Development
 
+Codex contributors should read [AGENTS.md](AGENTS.md) for working agreements,
+validation commands, and review rules. It links to the existing role contracts;
+it does not assign a manager role or start monitoring.
+
+For a standing team, [per-member role guides and onboarding](team/README.md)
+provide specialties and shared working agreements without creating new tasks
+or changing their existing projects and settings.
+
+Codex discovers project instructions from its project root through its working
+directory. Start in this repository for direct discovery. If your task starts
+in a parent workspace, use a narrowly scoped parent `AGENTS.md` that tells it to
+read this repository's handbook only for Agent Office work. Existing coordinator
+and foreground briefs also point to the handbook. Verify loaded instructions in
+a fresh run; do not assume an already-running task has reloaded them. See the
+[official AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+
 The interface is plain HTML, CSS, and JavaScript. There is no frontend build dependency.
 
 ```sh
