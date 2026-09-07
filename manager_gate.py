@@ -18,6 +18,84 @@ from pathlib import Path
 
 MAX_FRAME = 32 * 1024 * 1024
 MIN_ROUND_SECONDS = 600
+MAX_CONTINUATIONS = 6
+
+
+def continuity_hold(state, foreground):
+    if not isinstance(foreground, dict) or foreground.get('status') != 'ready':
+        return None
+    if state.get('continuationIdentity') == [foreground.get('jobId'), foreground.get('authorization')]:
+        if state.get('continuationCheckpoint') == foreground.get('checkpoint'):
+            return 'checkpoint-not-advanced'
+        if state.get('continuationCount', 0) >= MAX_CONTINUATIONS:
+            return 'continuation-limit'
+    return None
+
+
+def continuity_action(state, observed, foreground, round_due, now):
+    """Choose work without treating a terminal turn as a completed assignment.
+
+    Foreground records are explicit manager-authored checkpoints, never inferred
+    from idle history. This function does not mutate the shared job ledger.
+    """
+    if state.get('dispatch') or state.get('error') or observed is None or not observed['managerIdle']:
+        return None
+    if not foreground:
+        return 'round' if round_due else None
+    if not isinstance(foreground, dict):
+        raise ValueError('Invalid foreground checkpoint')
+    phase = foreground.get('status')
+    if phase not in ('ready', 'running', 'waiting', 'awaiting_approval',
+                     'awaiting_user_input', 'completed', 'canceled', 'superseded'):
+        raise ValueError('Invalid foreground status')
+    if phase == 'running':
+        return None  # Idle between turns is not a safe checkpoint.
+    if phase != 'ready':
+        return 'round' if round_due else None
+    for key in ('jobId', 'authorization', 'checkpoint', 'nextStep'):
+        if not isinstance(foreground.get(key), str) or not foreground[key].strip():
+            raise ValueError('Incomplete foreground checkpoint')
+    if round_due:
+        return 'round'
+    if now - state.get('lastWakeAt', 0) < 30:
+        return None
+    identity = [foreground['jobId'], foreground['authorization']]
+    if state.get('continuationIdentity') == identity:
+        if state.get('continuationCheckpoint') == foreground['checkpoint']:
+            return None  # One continuation per checkpoint; no unchanged retries.
+        if state.get('continuationCount', 0) >= MAX_CONTINUATIONS:
+            return None
+    return 'continue'
+
+
+def record_continuation(state, foreground):
+    identity = [foreground['jobId'], foreground['authorization']]
+    count = state.get('continuationCount', 0) if state.get('continuationIdentity') == identity else 0
+    state.update(continuationIdentity=identity,
+                 continuationCheckpoint=foreground['checkpoint'], continuationCount=count + 1)
+
+
+CONTINUITY_INSTRUCTIONS = '''
+Foreground continuity: Read the private manager ledger's foreground record before
+acting. A round is maintenance, not a replacement user assignment. Preserve its
+checkpoint and authorized scope. After this bounded round, resume a ready
+foreground assignment in this same turn when practical. Before any resumed work,
+check current user instructions: cancellation, replacement, approval waits, and
+newer decisions take precedence. Never infer permission from this scheduled input.
+Save a meaningful checkpoint before ending. If progress is blocked, record why
+and report it once; do not manufacture a new checkpoint merely to trigger a wake.
+'''
+
+CONTINUATION_PROMPT = '''This is a bounded continuation of an explicitly recorded
+foreground assignment, not a new assignment and not an office round. Read the
+manager brief and private ledger. Reconcile the foreground job against newer user
+instructions before taking action; stop if canceled, superseded, completed, or
+waiting for approval/input. If still ready, perform the recorded next step within
+its existing authorization, verify the result, and checkpoint actual progress.
+Do not send a message to yourself or create another monitor. Stop and report once
+if you cannot make meaningful progress. Local scheduling permits at most six
+continuations per authorization; do not reset that budget yourself.
+'''
 
 
 def private_json(path):
@@ -201,6 +279,7 @@ class LocalManagerWatch:
         with self.lock:
             self.public = {'enabled': True, 'status': status,
                            'lastLocalCheckAt': state.get('lastLocalCheckAt'),
+                           'continuityStatus': state.get('continuityStatus') if state.get('continuityStatus') in ('checkpoint-not-advanced', 'continuation-limit') else None,
                            'wakeCount': state.get('wakeCount', 0)}
 
     def run(self):
@@ -235,6 +314,15 @@ class LocalManagerWatch:
                     return
                 observed = observation(self.office.snapshot(), manager, ids)
                 state, status, wake = decide(state, observed, time.time())
+                foreground = None
+                action = 'round' if wake else None
+                continuity = config.get('continuityEnabled') is True
+                if continuity:
+                    ledger = json.loads(self.office.roster_path.with_name('state.json').read_text())
+                    foreground = ledger.get('foreground')
+                    action = continuity_action(state, observed, foreground, wake, time.time())
+                    state['continuityStatus'] = continuity_hold(state, foreground)
+                    wake = action is not None
                 if config.get('verifyFirstWake') is True and not state.get('verificationComplete') and not state.get('dispatch') and not state.get('error'):
                     # Explicit one-time installation smoke test, never a timer.
                     state.setdefault('pendingAt', time.time())
@@ -249,13 +337,25 @@ class LocalManagerWatch:
                                 self.publish(state, 'manager-busy')
                                 self.stop.wait(15)
                                 continue
+                            if continuity:
+                                fresh = json.loads(self.office.roster_path.with_name('state.json').read_text()).get('foreground')
+                                if fresh != foreground:
+                                    self.stop.wait(15)
+                                    continue  # A new decision/checkpoint invalidates this dispatch.
+                            send_prompt = prompt + CONTINUITY_INSTRUCTIONS if continuity else prompt
+                            if continuity and continuity_hold(state, foreground):
+                                send_prompt += '\nForeground continuation is paused by the local guard. Do not resume it during rounds. Report the unchanged checkpoint or continuation limit once and request direction.\n'
+                            if action == 'continue':
+                                send_prompt = CONTINUATION_PROMPT
+                                record_continuation(state, foreground)
                             # Persist BEFORE the send. A crash or timeout must not duplicate it.
                             state['dispatch'] = {'at': time.time(), 'outcome': 'pending'}
                             save_state(state_path, state)
                             phase = 'wake-acknowledgement'
-                            client.wake(manager, prompt, owner)
+                            client.wake(manager, send_prompt, owner)
                         state.pop('dispatch')
-                        state.pop('pendingAt', None)
+                        if action == 'round':
+                            state.pop('pendingAt', None)
                         state['lastWakeAt'] = time.time()
                         state['wakeCount'] = state.get('wakeCount', 0) + 1
                         if config.get('verifyFirstWake') is True:

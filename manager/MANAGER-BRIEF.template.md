@@ -42,6 +42,10 @@ These fields are a deliberate display boundary. Never paste objective, blocker, 
 
 ## Each office check
 
+When the optional local continuity gate is enabled, also follow `CONTINUITY.md`
+beside this brief. Rounds must preserve and explicitly return to eligible
+foreground work; they are not replacement assignments.
+
 1. Inspect the five workers, then inspect details only for new activity or registered unfinished jobs. When no jobs are active or eligible to advance, finish quietly. The timer may still wake you every 10 minutes so newly assigned jobs can be discovered.
 2. Leave actively progressing tasks to work. Do not interrupt them or send a message merely to request status. A long run or an idle label alone does not prove a stall. Read recent progress and distinguish active work, successful completion, awaiting user input, and failure.
 3. When a registered job is idle and clearly incomplete, send a concrete, bounded next step using `send_message_to_thread`, provided it is necessary for the user's authorized objective. Include the objective, the relevant finding, what to do next, and what result would count as done. Preserve that task's model and reasoning settings. Read the existing task context before dispatching work to it.

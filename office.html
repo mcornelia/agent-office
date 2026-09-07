@@ -420,7 +420,7 @@
         const fresh=typeof localAt==='number' && Number.isFinite(localAt) && now-localAt*1000<=45000 && localAt*1000-now<=5000;
         const healthy=watch.enabled===true && fresh && ['idle','watching','settling','ready','requested','manager-busy'].includes(watch.status);
         const disabled=watch.enabled===false || ['disabled','configuration-changed'].includes(watch.status);
-        const watchLabel=disabled?'Watch disabled':watch.status==='paused-error'?'Watch paused':healthy?'Watching team':watch.status==='starting'?'Watch starting':'Watch unavailable';
+        const watchLabel=disabled?'Watch disabled':watch.status==='paused-error'?'Watch paused':watch.continuityStatus?'Resume needs attention':healthy?'Watching team':watch.status==='starting'?'Watch starting':'Watch unavailable';
         // An active task is not necessarily an office round. Use real communication
         // events for Checking in; never change the underlying activity colors.
         const checking=healthy && roundManager?.keyNumber===key && roundManager.roundHold;

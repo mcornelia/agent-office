@@ -62,6 +62,11 @@ Keep generated configuration and history out of commits. The repository's `.giti
 
 ## Local gate: no AI calls while the office is idle
 
+Optional foreground continuity is documented in [CONTINUITY.md](CONTINUITY.md).
+Enable it deliberately with `continuityEnabled: true` after backing up runtime
+and private state. It adds bounded resumption of explicit checkpoints, not an
+idle AI timer. Do not restore old job ledgers during rollback.
+
 The time-based heartbeat above is the simpler option, but it starts an AI turn
 even when there is nothing to do. The opt-in local gate replaces that timer with
 a Python status check every 15 seconds. No model, prompt, conversation text, or

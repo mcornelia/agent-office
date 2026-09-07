@@ -169,7 +169,7 @@ class PolicyTests(unittest.TestCase):
     def test_public_watch_status_has_no_private_fields(self):
         watch = LocalManagerWatch(None, '/not-used')
         watch.publish({'baseline': {'private-id': 'secret'}, 'error': '/private/path', 'wakeCount': 2}, 'idle')
-        self.assertEqual(set(watch.status()), {'enabled', 'status', 'wakeCount', 'lastLocalCheckAt'})
+        self.assertEqual(set(watch.status()), {'enabled', 'status', 'wakeCount', 'lastLocalCheckAt', 'continuityStatus'})
         self.assertNotIn('private', json.dumps(watch.status()))
 
 
