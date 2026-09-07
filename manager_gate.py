@@ -8,18 +8,16 @@ import copy
 import fcntl
 import json
 import os
-import socket
 import stat
-import struct
 import threading
 import time
-import uuid
 from pathlib import Path
 
-MAX_FRAME = 32 * 1024 * 1024
+from desktop_dispatch import dispatch_mode, open_transport
+
+MAX_STATE_BYTES = 128 * 1024
 MIN_ROUND_SECONDS = 600
 MAX_CONTINUATIONS = 6
-MAX_RECOVERY_CHECKS = 1
 
 
 def continuation_key(foreground):
@@ -109,11 +107,9 @@ def continuity_action(state, observed, foreground, round_due, now):
                      'awaiting_user_input', 'completed', 'canceled', 'superseded', 'recovery_needed'):
         raise ValueError('Invalid foreground status')
     if phase in ('running', 'recovery_needed'):
-        # Only positive idle evidence reaches here. Do not infer a safe resume
-        # from time alone, or rewrite the shared ledger from the polling thread.
-        budget = continuation_budget(state, foreground)
-        if now - state.get('lastWakeAt', 0) >= 30 and budget.get('recoveryCount', 0) < MAX_RECOVERY_CHECKS:
-            return 'recover'
+        # Normal task permissions cannot enforce read-only recovery. Require
+        # the user to reconcile this checkpoint; never wake the foreground task.
+        # Ordinary coordination may still proceed, without resuming this job.
         return 'round' if round_due else None
     if phase != 'ready':
         return 'round' if round_due else None
@@ -136,17 +132,6 @@ def record_continuation(state, foreground):
                                                     {'count': 0, 'checkpoints': [], 'recoveryCount': 0})
     budget['count'] = budget.get('count', 0) + 1
     budget.setdefault('checkpoints', []).append(foreground['checkpoint'])
-
-
-def record_recovery(state, foreground):
-    if foreground.get('status') not in ('running', 'recovery_needed'):
-        raise ValueError('Foreground recovery is not eligible')
-    migrate_continuation_state(state)
-    budget = state['continuationBudgets'].setdefault(continuation_key(foreground),
-                                                    {'count': 0, 'checkpoints': [], 'recoveryCount': 0})
-    if budget.get('recoveryCount', 0) >= MAX_RECOVERY_CHECKS:
-        raise ValueError('Recovery was already requested')
-    budget['recoveryCount'] = budget.get('recoveryCount', 0) + 1
 
 
 def continuity_status(state, observed, foreground):
@@ -188,34 +173,15 @@ this turn, even if a checkpoint becomes ready during the round. Preserve any
 foreground approval/input wait. If recovery or a continuation limit needs user
 attention, report it once and retain the waiting state. The local scheduler must
 reserve a continuation before any foreground execution.
+Do not perform recovery or rewrite an orphaned foreground checkpoint during
+rounds. Recovery requires a direct user review request in the lead task.
 '''
-
-RECOVERY_PROMPT = '''This is a single bounded, read-only recovery check for a
-recorded foreground assignment whose ledger says running/recovery_needed while
-the task is positively idle. It is not permission to repeat or resume its work.
-Read the manager brief, private ledger, recent task evidence, and any relevant
-artifacts or send receipts. Newer user instructions and approval boundaries win.
-Reconcile the saved job: mark completed/canceled/superseded when supported by
-evidence, preserve waits, or save a ready next step only when safe and authorized.
-If a previous action may have happened, inspect its result; never retry an
-uncertain external effect. An already-reserved checkpoint is not reusable. Do
-not change its identifier just to bypass that protection. If evidence is missing
-or contradictory, mark recovery_needed and report the specific blocker once.
-You may update the private ledger and report findings, but must not execute
-substantive foreground work during this recovery turn. Do not create monitors,
-message yourself, or reset recovery/continuation budgets. One automatic recovery
-check is allowed per job and authorization; further recovery requires the user.
-'''
-
 
 def prepare_dispatch(state, foreground, action, round_prompt):
     """Reserve every execution path before the durable pre-send marker."""
     if action in ('continue', 'round-resume'):
         record_continuation(state, foreground)
         prompt = CONTINUATION_PROMPT if action == 'continue' else round_prompt + CONTINUITY_INSTRUCTIONS
-    elif action == 'recover':
-        record_recovery(state, foreground)
-        prompt = RECOVERY_PROMPT
     elif action == 'round':
         return round_prompt + ROUND_ONLY_INSTRUCTIONS
     else:
@@ -238,110 +204,38 @@ def choose_dispatch(state, round_observed, foreground_observed, foreground,
     return continuity_action(state, foreground_observed, foreground, False, now), foreground_id
 
 
+class StateSizeError(ValueError):
+    """A durable state update exceeds the limit; retain the last valid file."""
+
+
+def serialize_state(state):
+    payload = (json.dumps(state, indent=2, ensure_ascii=False, allow_nan=False) + '\n').encode('utf-8')
+    if len(payload) > MAX_STATE_BYTES:
+        raise StateSizeError('Watch file exceeds its size limit')
+    return payload
+
+
 def private_json(path):
     info = path.lstat()
     if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
         raise ValueError('Watch configuration/state must be an owner-only regular file')
-    if info.st_size > 128 * 1024:
-        raise ValueError('Watch file exceeds its size limit')
+    if info.st_size > MAX_STATE_BYTES:
+        raise StateSizeError('Watch file exceeds its size limit')
     return json.loads(path.read_text())
 
 
 def save_state(path, state):
+    # Validate the exact UTF-8 bytes before opening/replacing anything. Never
+    # prune durable receipts to make room, and never dispatch after failure.
+    payload = serialize_state(state)
     temporary = path.with_suffix('.tmp')
     fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(fd, 'w') as stream:
-        json.dump(state, stream, indent=2)
-        stream.write('\n')
+    with os.fdopen(fd, 'wb') as stream:
+        stream.write(payload)
         stream.flush()
         os.fsync(stream.fileno())
     temporary.chmod(0o600)
     temporary.replace(path)
-
-
-class DesktopRequest:
-    """Bounded same-user IPC client; never handles approvals or discoveries."""
-    def __init__(self, path, timeout=30):
-        self.path, self.timeout = Path(path), timeout
-
-    def __enter__(self):
-        info = self.path.lstat()
-        if not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid():
-            raise ValueError('Desktop socket must belong to the current user')
-        self.connection = socket.socket(socket.AF_UNIX)
-        self.connection.settimeout(self.timeout)
-        try:
-            self.connection.connect(str(self.path))
-            self.request('initialize', {'clientType': 'agent-office-local-watch'}, version=0)
-        except Exception:
-            self.connection.close()
-            raise
-        return self
-
-    def __exit__(self, *_args):
-        self.connection.close()
-
-    def send(self, message):
-        body = json.dumps(message).encode()
-        self.connection.sendall(struct.pack('<I', len(body)) + body)
-
-    def read_exact(self, size):
-        data = bytearray()
-        while len(data) < size:
-            part = self.connection.recv(size - len(data))
-            if not part:
-                raise EOFError('Desktop connection closed')
-            data.extend(part)
-        return data
-
-    def request(self, method, params, version, target=None):
-        rid = str(uuid.uuid4())
-        message = {'type': 'request', 'requestId': rid, 'method': method,
-                   'version': version, 'params': params}
-        if target:
-            message['targetClientId'] = target
-        self.send(message)
-        deadline = time.monotonic() + self.timeout
-        while time.monotonic() < deadline:
-            self.connection.settimeout(max(.01, deadline - time.monotonic()))
-            size = struct.unpack('<I', self.read_exact(4))[0]
-            if not 0 < size <= MAX_FRAME:
-                raise ValueError('Unsupported desktop frame')
-            result = json.loads(self.read_exact(size))
-            if result.get('type') == 'client-discovery-request':
-                self.send({'type': 'client-discovery-response', 'requestId': result['requestId'],
-                           'response': {'canHandle': False}})
-            if result.get('type') == 'response' and result.get('requestId') == rid:
-                if result.get('resultType') != 'success' or result.get('method') != method:
-                    raise RuntimeError('Desktop request was not accepted')
-                return result
-        raise TimeoutError('Desktop request outcome is unknown')
-
-    def owner(self, manager_id):
-        reply = self.request('thread-owner-discovery',
-                             {'hostId': 'local', 'conversationId': manager_id}, version=1)
-        owner = reply.get('handledByClientId')
-        if not isinstance(owner, str) or not owner:
-            raise RuntimeError('Manager task has no available desktop owner')
-        return owner
-
-    def wake(self, manager_id, prompt, owner):
-        # No model, effort, permission, workspace, or approval overrides.
-        reply = self.request('thread-follower-start-turn', {
-            'conversationId': manager_id,
-            'turnStart': {'request': {'threadId': manager_id,
-                                     'input': [{'type': 'text', 'text': prompt, 'text_elements': []}]},
-                          'context': {'inheritThreadSettings': True}},
-        }, version=2, target=owner)
-        # The desktop bridge unwraps the renderer's {method, result} before
-        # returning it over IPC. The method belongs to the response envelope,
-        # not reply.result. request() has already checked its request ID.
-        if (reply.get('resultType') != 'success'
-                or reply.get('method') != 'thread-follower-start-turn'
-                or reply.get('handledByClientId') != owner
-                or not isinstance(reply.get('result'), dict)):
-            raise RuntimeError('Unexpected wake response; inspect the manager before retrying')
-        return True
 
 
 def observation(snapshot, manager_id, worker_ids):
@@ -429,6 +323,7 @@ class LocalManagerWatch:
             if config.get('enabled') is not True:
                 self.publish(state, 'disabled')
                 return
+            mode = dispatch_mode(config)
             team = json.loads(self.office.roster_path.read_text())
             manager = team['managerThreadId']
             if config.get('managerThreadId') != manager:
@@ -481,10 +376,16 @@ class LocalManagerWatch:
                 if config.get('verifyFirstWake') is True and not state.get('verificationComplete') and not state.get('dispatch') and not state.get('error'):
                     # Explicit one-time installation smoke test, never a timer.
                     state.setdefault('pendingAt', time.time())
+                if mode == 'manual':
+                    # Observe and retain receipts, but do not connect, reserve
+                    # execution, or send anything. No implicit transport fallback.
+                    wake = False
+                    if status not in ('paused-error', 'unavailable'):
+                        status = 'manual-required'
                 if wake:
                     phase = 'connect'
                     try:
-                        with DesktopRequest(self.office.codex_dir / 'ipc' / 'ipc.sock') as client:
+                        with open_transport(mode, self.office.codex_dir) as client:
                             phase = 'owner-discovery'
                             owner = client.owner(target)  # No AI request yet.
                             latest = observation(self.office.snapshot(), target,
@@ -498,12 +399,17 @@ class LocalManagerWatch:
                                 if fresh != foreground:
                                     self.stop.wait(15)
                                     continue  # A new decision/checkpoint invalidates this dispatch.
-                            send_prompt = prepare_dispatch(state, foreground, action, prompt) if continuity else prompt
+                            if private_json(self.config_path) != config:
+                                self.publish(state, 'configuration-changed')
+                                return
+                            candidate = copy.deepcopy(state)
+                            send_prompt = prepare_dispatch(candidate, foreground, action, prompt) if continuity else prompt
                             if foreground_manager != manager:
                                 send_prompt += '\nSplit coordinator mode: state.json belongs to the coordinator; foreground.json beside it belongs to the foreground task. Do not write the other task\'s file.\n'
                             # Persist BEFORE the send. A crash or timeout must not duplicate it.
-                            state['dispatch'] = {'at': time.time(), 'outcome': 'pending', 'kind': action}
-                            save_state(state_path, state)
+                            candidate['dispatch'] = {'at': time.time(), 'outcome': 'pending', 'kind': action}
+                            save_state(state_path, candidate)
+                            state = candidate
                             phase = 'wake-acknowledgement'
                             client.wake(target, send_prompt, owner)
                         state.pop('dispatch')
@@ -514,8 +420,11 @@ class LocalManagerWatch:
                         if config.get('verifyFirstWake') is True:
                             state['verificationComplete'] = True
                         status = 'requested'
+                    except StateSizeError:
+                        self.publish(state, 'state-limit')
+                        return
                     except Exception as exc:
-                        state['error'] = 'Wake failed or uncertain; review Scout before rearming the local watch.'
+                        state['error'] = 'Wake failed or uncertain; review the receiving task before rearming the local watch.'
                         # Keep diagnostics useful without retaining raw responses,
                         # prompts, exception messages, or private app paths.
                         state['errorPhase'] = phase
@@ -526,6 +435,8 @@ class LocalManagerWatch:
                 save_state(state_path, state)
                 self.publish(state, status)
                 self.stop.wait(15)
+        except StateSizeError:
+            self.publish(state, 'state-limit')
         except Exception:
             self.publish(state, 'paused-error')
         finally:

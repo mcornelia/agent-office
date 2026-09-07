@@ -69,7 +69,7 @@ idle AI timer. Do not restore old job ledgers during rollback.
 
 You can also use a separate existing task for lightweight rounds (for example,
 Echo) while the project lead (Avina, CoS) keeps focused work. The optional
-`foregroundThreadId` setting routes recovery and continuations to that lead;
+`foregroundThreadId` setting routes authorized continuations to that lead;
 rounds stay with the coordinator. Each has a separate private state file to
 avoid concurrent ledger edits. See [the split-mode contract](CONTINUITY.md#separate-coordinator-optional)
 and [the coordinator brief](COORDINATOR.md). No extra agent or AI timer is needed.
@@ -101,7 +101,12 @@ normal no-overlapping-turn checks when a wake is submitted.
 Ask your manager to configure this mode explicitly. It must create an owner-only
 `manager-gate.json` file in the desktop app's private Application Support folder,
 with `enabled: true`, `managerThreadId` matching the private roster, and a `prompt`
-containing your existing bounded manager instructions. Never put private IDs or
+containing your existing bounded manager instructions. The default
+`dispatchMode` is `manual`: it observes activity but opens no dispatch connection
+and sends no prompts. To keep the optional private desktop wake-up behavior,
+explicitly select `dispatchMode: "desktop-experimental"` after reviewing
+[the integration boundary](SAFETY.md). Missing or unsupported integration modes
+never silently fall back to private IPC. Never put private IDs or
 the resulting gate state in a public commit. The native launcher recognizes this
 file on its next server start. For a manually managed server, pass
 `--manager-gate-config /absolute/path/to/manager-gate.json` instead.
@@ -123,6 +128,16 @@ existing manager task owner and requests one turn there, inheriting its current
 model, workspace, and permissions. It does not launch a separate CLI agent,
 approve anything, or change task settings. HTTP remains read-only.
 
+The decision logic lives in `manager_gate.py`; the private connection is isolated
+in `desktop_dispatch.py`. This is not a supported App Server adapter. Manual
+coordination remains available without enabling either automatic dispatch or
+a background model check.
+
+**Recovery needs your review.** An idle task whose saved job still says running
+does not receive an automatic recovery prompt. Ask the lead to inspect the job
+and receipts before deciding what to resume. A prompt saying “read-only” would
+not restrict that task's normal tools and permissions.
+
 Private `manager-gate-state.json` records the metadata baseline, local check time,
 wake count, and pending send marker. A file lock prevents duplicate gate
 processes. The pending marker is persisted before a send: a crash, timeout, or
@@ -130,6 +145,12 @@ unknown response leaves dispatch paused. It never blindly retries a send.
 Successful acknowledgement is checked against the IPC envelope's request ID,
 method, success status, and discovered owner. The result does not repeat the
 method. Errors retain only a phase and exception type, not private response text.
+
+Every state save checks the complete serialized UTF-8 payload against 128 KiB
+before replacing the prior file. The pre-send check includes the new receipt.
+If it will not fit, the office says **Saved state full** and dispatch stops;
+existing receipts are not pruned. A post-send save failure retains the persisted
+pending marker, so restarting cannot silently repeat that send.
 
 If the footer says the watch needs attention, inspect the manager task to see
 whether a turn arrived before rearming. Preserve the state file for diagnosis;

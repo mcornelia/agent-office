@@ -333,7 +333,9 @@ test('paused, disabled, stale and unsupported watch states never claim monitorin
 });
 test('recovery and continuation holds have explicit private-detail-free labels',()=>{
   const h=office({reduced:true,board:true});
-  assert.equal(watchSnapshot(h,{watch:{continuityStatus:'recovery-needed'}}).label,'Recovery needed');
+  assert.equal(watchSnapshot(h,{watch:{continuityStatus:'recovery-needed'}}).label,'Recovery needs review');
+  assert.equal(watchSnapshot(h,{watch:{status:'state-limit'}}).label,'Saved state full');
+  assert.equal(watchSnapshot(h,{watch:{status:'manual-required'}}).label,'Manual coordination');
   assert.equal(watchSnapshot(h,{watch:{continuityStatus:'continuation-limit'}}).label,'Resume needs attention');
   assert.equal(watchSnapshot(h,{watch:{continuityStatus:null}}).label,'Watching team');
 });

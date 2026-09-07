@@ -5,7 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from manager_gate import decide, observation, private_json, save_state, DesktopRequest, LocalManagerWatch
+from manager_gate import (decide, observation, private_json, save_state, LocalManagerWatch,
+                          serialize_state, MAX_STATE_BYTES, StateSizeError)
+from desktop_dispatch import DesktopRequest, dispatch_mode, open_transport
 
 
 def wake_reply(owner='owner'):
@@ -180,6 +182,44 @@ class PolicyTests(unittest.TestCase):
 
 
 class StorageTests(unittest.TestCase):
+    def test_exact_byte_limit_works_and_overflow_does_not_touch_previous_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'state.json'
+            state = {'receipt': ''}
+            state['receipt'] = 'x' * (MAX_STATE_BYTES - len(serialize_state(state)))
+            save_state(path, state)
+            original = path.read_bytes()
+            self.assertEqual(len(original), MAX_STATE_BYTES)
+            self.assertEqual(private_json(path), state)
+            state['receipt'] += 'x'
+            with self.assertRaises(StateSizeError): save_state(path, state)
+            self.assertEqual(path.read_bytes(), original)
+            self.assertFalse(path.with_suffix('.tmp').exists())
+
+    def test_state_limit_counts_utf8_bytes_not_characters(self):
+        state = {'receipt': 'é' * 70000}
+        self.assertLess(len(json.dumps(state, ensure_ascii=False)), MAX_STATE_BYTES)
+        with self.assertRaises(StateSizeError): serialize_state(state)
+
+    def test_unknown_and_manual_transports_never_fall_back_to_private_ipc(self):
+        self.assertEqual(dispatch_mode({}), 'manual')
+        for mode in ('manual', 'app-server', None, 'typo'):
+            with self.subTest(mode=mode), patch('desktop_dispatch.socket.socket') as socket:
+                with self.assertRaises(ValueError): open_transport(mode, Path('/unused'))
+                socket.assert_not_called()
+        for mode in (None, 'app-server', 'typo', True):
+            with self.assertRaises(ValueError): dispatch_mode({'dispatchMode': mode})
+
+    def test_invalid_transport_configuration_fails_before_connecting(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder) / 'config.json'
+            save_state(config, {'enabled': True, 'dispatchMode': 'unsupported'})
+            watch = LocalManagerWatch(None, config)
+            with patch('manager_gate.open_transport') as connect:
+                watch.run()
+                connect.assert_not_called()
+            self.assertEqual(watch.status()['status'], 'paused-error')
+
     def test_one_time_live_verification_is_durable_and_does_not_become_idle_timer(self):
         self.run_watch_case(fail=False)
 
@@ -194,7 +234,7 @@ class StorageTests(unittest.TestCase):
             roster.write_text(json.dumps({'managerThreadId': 'manager', 'members': [
                 {'threadId': 'manager', 'hostId': 'local'}, {'threadId': 'worker', 'hostId': 'local'}]}))
             config = root / 'manager-gate.json'
-            save_state(config, {'enabled': True, 'verifyFirstWake': True,
+            save_state(config, {'enabled': True, 'dispatchMode': 'desktop-experimental', 'verifyFirstWake': True,
                                 'managerThreadId': 'manager', 'prompt': 'One check.'})
             snap = {'connected': True, 'slots': [
                 {'id': 'manager', 'state': 'idle', 'eventAt': 'complete'},
@@ -205,7 +245,7 @@ class StorageTests(unittest.TestCase):
                 def __init__(self): self.polls = 0
                 def is_set(self): return self.polls >= 80
                 def wait(self, seconds): self.polls += 1; clock[0] += seconds
-            with patch('manager_gate.time.time', side_effect=lambda: clock[0]), patch('manager_gate.DesktopRequest') as request:
+            with patch('manager_gate.time.time', side_effect=lambda: clock[0]), patch('manager_gate.open_transport') as request:
                 client = request.return_value.__enter__.return_value
                 client.owner.return_value = 'owner'
                 if fail: client.wake.side_effect = TimeoutError('unknown')

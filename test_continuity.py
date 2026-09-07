@@ -1,5 +1,5 @@
 import unittest
-from manager_gate import (continuity_action, record_continuation, record_recovery,
+from manager_gate import (continuity_action, record_continuation,
                           continuation_budget, continuity_status,
                           migrate_continuation_state, prepare_dispatch, choose_dispatch)
 
@@ -16,10 +16,10 @@ class ContinuityTests(unittest.TestCase):
     def test_ready_job_resumes_without_worker_activity(self):
         self.assertEqual(self.action(), 'continue')
 
-    def test_orphaned_running_job_gets_recovery_not_execution(self):
+    def test_orphaned_running_job_requires_human_review_not_a_wake(self):
         self.job['status'] = 'running'
-        self.assertEqual(self.action(due=True), 'recover')
-        self.assertEqual(self.action(), 'recover')
+        self.assertEqual(self.action(due=True), 'round')
+        self.assertIsNone(self.action())
         self.assertEqual(continuity_status({}, self.observed, self.job), 'recovery-needed')
 
     def test_busy_never_interrupted(self):
@@ -121,19 +121,19 @@ class ContinuityTests(unittest.TestCase):
         self.job['checkpoint'] = 'step-2'
         self.assertIsNone(self.action(state))
 
-    def test_recovery_is_once_per_authorization_and_does_not_block_rounds(self):
+    def test_recovery_is_never_dispatched_and_legacy_receipts_are_preserved(self):
         import json
         self.job['status'] = 'running'
-        state = {}
-        prompt = prepare_dispatch(state, self.job, 'recover', 'Round')
-        self.assertIn('read-only recovery', prompt)
-        self.assertIn('must not execute', prompt)
+        state = {'continuationSchemaVersion': 2, 'continuationBudgets': {
+            '["job","user-turn"]': {'count': 0, 'checkpoints': [], 'recoveryCount': 1}}}
+        before = json.dumps(state, sort_keys=True)
+        with self.assertRaises(ValueError):
+            prepare_dispatch(state, self.job, 'recover', 'Round')
+        self.assertEqual(json.dumps(state, sort_keys=True), before)
         self.assertEqual(continuation_budget(state, self.job)['count'], 0)
         state = json.loads(json.dumps(state))
         self.assertIsNone(self.action(state))
         self.assertEqual(self.action(state, due=True), 'round')
-        with self.assertRaises(ValueError):
-            record_recovery(state, self.job)
         self.job['checkpoint'] = 'renamed'
         self.assertIsNone(self.action(state))
         self.job['status'] = 'ready'
@@ -179,10 +179,10 @@ class ContinuityTests(unittest.TestCase):
         self.assertEqual(choose_dispatch({}, {'managerIdle': False}, {'managerIdle': True},
                                          self.job, False, 1000, 'echo', 'scout'), ('continue', 'scout'))
 
-    def test_split_recovery_targets_scout_not_echo(self):
+    def test_split_recovery_never_wakes_either_task(self):
         self.job['status'] = 'running'
         self.assertEqual(choose_dispatch({}, {'managerIdle': True}, {'managerIdle': True},
-                                         self.job, False, 1000, 'echo', 'scout'), ('recover', 'scout'))
+                                         self.job, False, 1000, 'echo', 'scout'), (None, 'scout'))
 
     def test_real_watch_resumes_once_and_rechecks_cancellation(self):
         import json
@@ -201,7 +201,7 @@ class ContinuityTests(unittest.TestCase):
                 ledger = root / 'state.json'
                 save_state(ledger, {'foreground': self.job})
                 config = root / 'manager-gate.json'
-                save_state(config, dict(enabled=True, continuityEnabled=True,
+                save_state(config, dict(enabled=True, dispatchMode='desktop-experimental', continuityEnabled=True,
                                         managerThreadId='manager', prompt='Round'))
                 snap = {'connected': True, 'slots': [
                     {'id': 'manager', 'state': 'idle', 'eventAt': 'done'},
@@ -212,7 +212,7 @@ class ContinuityTests(unittest.TestCase):
                     def __init__(self): self.polls = 0
                     def is_set(self): return self.polls >= 5
                     def wait(self, seconds): self.polls += 1; clock[0] += seconds
-                with patch('manager_gate.time.time', side_effect=lambda: clock[0]), patch('manager_gate.DesktopRequest') as request:
+                with patch('manager_gate.time.time', side_effect=lambda: clock[0]), patch('manager_gate.open_transport') as request:
                     client = request.return_value.__enter__.return_value
                     def owner(_):
                         if cancel:

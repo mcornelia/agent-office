@@ -138,3 +138,14 @@ test('presentation keeps its redacted API route across reconnection',async()=>{
   await h.fail(0);await h.event('pagehide');await h.event('pageshow');
   assert.equal(h.requests[1].url,'/api/state?presentation=1');
 });
+
+for(const [watch,expected] of [
+  [{status:'manual-required'},/Manual coordination.*No automatic prompts/],
+  [{status:'state-limit'},/Saved state is full.*Keep the saved receipts/],
+  [{status:'idle',continuityStatus:'recovery-needed'},/Recovery needs your review.*No automatic recovery/],
+  [{status:'paused-error',continuityStatus:'recovery-needed'},/automatic rounds are paused/],
+  [{status:'configuration-changed'},/configuration changed.*stopped/]
+]) test(`watch notice explains ${watch.status} ${watch.continuityStatus||''}`,async()=>{
+  const h=harness();await h.reply(0,{...snapshot(),managerWatch:watch});
+  assert.match(h.note.textContent,expected);
+});

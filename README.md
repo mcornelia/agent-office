@@ -96,6 +96,10 @@ check. Idle overnight polling uses zero AI tokens. Actual manager rounds and
 worker tasks still use the account's normal allowance. This opt-in desktop
 integration uses observed internal IPC, not a supported public wake-up API; it
 stops automatic dispatch on an uncertain send instead of risking duplicates.
+New configurations default to manual coordination. Private wake-ups require an
+explicit `dispatchMode: "desktop-experimental"` setting, with no automatic
+fallback. Orphaned jobs require human recovery review; a read-only prompt is
+not a permissions boundary. See [dispatch safety](manager/SAFETY.md).
 
 With the local watch enabled, the manager's desk says **Watching team** between
 rounds and shows the last completed ledger check in your browser's local time.
@@ -165,6 +169,7 @@ python3 server.py --check
 | `job_board.py` | Privacy-filtered manager job, decision, and result projection |
 | `manager/` | Optional coordination brief, configuration, and context reader |
 | `manager_gate.py` | Opt-in, metadata-only local watcher and bounded manager wake-up |
+| `desktop_dispatch.py` | Explicitly selected experimental private desktop sender |
 
 The standalone `office.html` scene has an example activity preview for interface development. `index.html` always connects to the local activity source.
 

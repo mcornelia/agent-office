@@ -32,6 +32,8 @@ It does not authorize creating more agents, changing models, or new project work
    and decisions in the ledger and report actionable items in your own task. Do
    not inject routine reports or nudges into its conversation, even when idle;
    the user and local continuation gate control when that task resumes.
+   If its saved job needs recovery, flag it for the user; do not send a recovery
+   prompt or mark it ready yourself. Automatic recovery is disabled.
 5. Re-read `state.json`, update only reconciled job rows, and set `lastCheckAt`
    only after the actual roster check. Record every dispatch/report signature.
    Keep concise evidence, not transcripts. Preserve completed history and waits.

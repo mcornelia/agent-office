@@ -1,5 +1,10 @@
 # Scout: finish the job, even after rounds
 
+Historical implementation record. The later [dispatch safety update](../manager/SAFETY.md)
+supersedes the automatic recovery design below: recovery now requires human
+review, saved state is size-checked before replacement or dispatch, and the
+private desktop transport is explicitly experimental with a manual default.
+
 Status: the original continuity change was published. The approved review fixes
 and Echo coordinator split are now deployed locally. GitHub publication was
 approved after the local validation.

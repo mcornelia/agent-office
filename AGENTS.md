@@ -68,7 +68,8 @@ do not restart the service just to validate text.
   completion, or permission. Preserve explicit unknown/reconnecting states.
 - Flag any execution path that skips durable pre-send reservations, resets
   per-job authorization budgets, retries uncertain sends, or resumes a stale
-  checkpoint. Keep recovery read-only and approval boundaries intact.
+  checkpoint. Recovery requires human review; do not reintroduce automatic
+  recovery through ordinary task permissions. Keep approval boundaries intact.
 - Flag concurrent ledger ownership or coordinator nudges into foreground work
   in split mode. Follow the separate-owner contract.
 - Flag private data escaping through viewer projections or new HTTP routes.

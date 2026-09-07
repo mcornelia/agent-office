@@ -32,7 +32,7 @@ if [[ $backend_port != <1-65535> ]]; then
 fi
 /usr/bin/plutil -replace AgentOfficeBackendPort -integer "$backend_port" "$contents/Info.plist"
 /usr/bin/plutil -replace AgentOfficePublicHost -string "$public_host" "$contents/Info.plist"
-cp "$repo_root/server.py" "$repo_root/desktop_status.py" "$repo_root/communications.py" "$repo_root/job_board.py" "$repo_root/manager_gate.py" "$repo_root/index.html" "$runtime/"
+cp "$repo_root/server.py" "$repo_root/desktop_status.py" "$repo_root/communications.py" "$repo_root/job_board.py" "$repo_root/manager_gate.py" "$repo_root/desktop_dispatch.py" "$repo_root/index.html" "$runtime/"
 cp "$desktop_dir/agent_office_ctl.py" "$runtime/desktop/"
 /usr/bin/printf '%s\n' "$repo_root" > "$runtime/source-root.txt"
 chmod 755 "$contents/MacOS/Agent Office" "$runtime/server.py" "$runtime/desktop/agent_office_ctl.py"

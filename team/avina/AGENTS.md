@@ -25,7 +25,8 @@ not management theater.
   private manager brief; its active split-mode rules govern legacy wording.
 - Maintain your designated foreground checkpoint before yielding; distinguish
   ready work, waits, completion, and uncertainty. Reconcile newer user decisions
-  before a gate-issued continuation. Recovery checks are not execution turns.
+  before a gate-issued continuation. Recovery requires a direct user review
+  request; it is not an automatic execution turn.
 - Bring material tradeoffs and blockers to the user with a recommendation. Keep
   working within scope while safe progress remains; do not turn a review request
   into deployment or a status check into a new assignment.

@@ -6,13 +6,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from manager_gate import (LocalManagerWatch, save_state, private_json,
+from manager_gate import (LocalManagerWatch, save_state, private_json, serialize_state, MAX_STATE_BYTES,
                           continuation_budget, record_continuation)
 
 
 class WatchIntegrationTests(unittest.TestCase):
     def exercise(self, *, split=False, phase='ready', worker='idle', scout='idle',
-                 echo='idle', initial=None, fail=False, cancel=False):
+                 echo='idle', initial=None, fail=False, cancel=False,
+                 mode='desktop-experimental', change_mode=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             roster = root / 'team.json'
@@ -20,7 +21,11 @@ class WatchIntegrationTests(unittest.TestCase):
             members = ['scout', 'echo', 'worker']
             save_state(roster, {'managerThreadId': manager, 'members': [
                 {'threadId': x, 'hostId': 'local'} for x in members]})
-            config = dict(enabled=True, continuityEnabled=True, managerThreadId=manager, prompt='Inspect workers.')
+            config = dict(enabled=True, dispatchMode='desktop-experimental', continuityEnabled=True, managerThreadId=manager, prompt='Inspect workers.')
+            if mode is None:
+                config.pop('dispatchMode')
+            else:
+                config['dispatchMode'] = mode
             if split:
                 config['foregroundThreadId'] = 'scout'
             save_state(root / 'manager-gate.json', config)
@@ -43,13 +48,15 @@ class WatchIntegrationTests(unittest.TestCase):
             def owner(target):
                 if cancel:
                     save_state(ledger, {'foreground': dict(job, status='canceled')})
+                if change_mode:
+                    save_state(root / 'manager-gate.json', {**config, 'dispatchMode': 'manual'})
                 return target + '-owner'
             def wake(target, prompt, _owner):
                 calls.append((target, prompt))
                 pre_send.append(private_json(root / 'manager-gate-state.json'))
                 if fail:
                     raise TimeoutError('Uncertain result')
-            with patch('manager_gate.time.time', side_effect=lambda: clock[0]), patch('manager_gate.DesktopRequest') as request:
+            with patch('manager_gate.time.time', side_effect=lambda: clock[0]), patch('manager_gate.open_transport') as request:
                 client = request.return_value.__enter__.return_value
                 client.owner.side_effect = owner
                 client.wake.side_effect = wake
@@ -57,26 +64,79 @@ class WatchIntegrationTests(unittest.TestCase):
                     watch = LocalManagerWatch(office, root / 'manager-gate.json')
                     watch.stop = Stop()
                     watch.run()
+                if mode in (None, 'manual'):
+                    request.assert_not_called()
             return job, private_json(root / 'manager-gate-state.json'), calls, pre_send, watch.status()
 
-    def test_recovery_receipt_persisted_before_send_survives_restart(self):
+    def test_recovery_never_wakes_or_reserves_even_after_restart(self):
         job, state, calls, receipts, public = self.exercise(phase='running')
-        self.assertEqual(len(calls), 1)
-        self.assertIn('read-only recovery', calls[0][1])
-        self.assertEqual(receipts[0]['dispatch']['kind'], 'recover')
-        self.assertEqual(continuation_budget(receipts[0], job)['recoveryCount'], 1)
+        self.assertEqual(calls, [])
+        self.assertEqual(receipts, [])
+        self.assertEqual(continuation_budget(state, job)['recoveryCount'], 0)
         self.assertEqual(continuation_budget(state, job)['count'], 0)
         self.assertEqual(public['continuityStatus'], 'recovery-needed')
 
-    def test_unknown_recovery_send_never_retried(self):
-        _, state, calls, _, _ = self.exercise(phase='running', fail=True)
-        self.assertEqual(len(calls), 1)
+    def test_pre_upgrade_uncertain_recovery_receipt_is_never_retried(self):
+        initial = {'dispatch': {'kind': 'recover', 'outcome': 'pending'}, 'error': 'uncertain'}
+        _, state, calls, _, _ = self.exercise(phase='running', initial=initial)
+        self.assertEqual(calls, [])
         self.assertEqual(state['dispatch']['kind'], 'recover')
         self.assertIn('error', state)
 
-    def test_recovery_cancellation_rechecked_before_send(self):
-        _, _, calls, _, _ = self.exercise(phase='running', cancel=True)
+    def test_split_orphaned_job_waits_for_user_but_coordinator_can_still_check(self):
+        job, state, calls, _, public = self.exercise(split=True, phase='running', worker='working')
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], 'echo')
+        self.assertIn('coordination-only', calls[0][1])
+        self.assertEqual(continuation_budget(state, job)['recoveryCount'], 0)
+        self.assertEqual(public['continuityStatus'], 'recovery-needed')
+
+    def test_manual_default_and_explicit_mode_never_connect_or_reserve(self):
+        for mode in (None, 'manual'):
+            with self.subTest(mode=mode), patch('desktop_dispatch.socket.socket') as socket:
+                job, state, calls, receipts, public = self.exercise(mode=mode, worker='working')
+                socket.assert_not_called()
+                self.assertEqual(calls, [])
+                self.assertEqual(receipts, [])
+                self.assertEqual(continuation_budget(state, job)['count'], 0)
+                self.assertEqual(public['status'], 'manual-required')
+
+    def test_one_new_receipt_crossing_size_limit_preserves_original_and_never_wakes(self):
+        key = '["old-job","old-approval"]'
+        initial = {'continuationSchemaVersion': 2, 'continuationBudgets': {
+            key: {'count': 1, 'checkpoints': [''], 'recoveryCount': 0}},
+            'baseline': {'echo': {'state': 'idle', 'eventAt': 'known-event'},
+                         'worker': {'state': 'idle', 'eventAt': 'known-event'}},
+            'lastWakeAt': 0, 'wakeCount': 1, 'lastLocalCheckAt': 1000, 'continuityStatus': None}
+        initial['continuationBudgets'][key]['checkpoints'][0] = 'x' * (MAX_STATE_BYTES - 80 - len(serialize_state(initial)))
+        job, state, calls, receipts, public = self.exercise(initial=initial)
         self.assertEqual(calls, [])
+        self.assertEqual(receipts, [])
+        self.assertEqual(state, initial)
+        self.assertEqual(continuation_budget(state, job)['count'], 0)
+        self.assertEqual(public['status'], 'state-limit')
+
+    def test_mode_change_during_owner_lookup_cancels_dispatch(self):
+        job, state, calls, receipts, _ = self.exercise(change_mode=True)
+        self.assertEqual(calls, [])
+        self.assertEqual(receipts, [])
+        self.assertEqual(continuation_budget(state, job)['count'], 0)
+
+    def test_uncertain_send_at_capacity_keeps_pending_receipt_and_never_retries(self):
+        key = '["old-job","old-approval"]'
+        initial = {'continuationSchemaVersion': 2, 'continuationBudgets': {
+            key: {'count': 1, 'checkpoints': [''], 'recoveryCount': 0}},
+            'baseline': {'echo': {'state': 'idle', 'eventAt': 'known-event'},
+                         'worker': {'state': 'idle', 'eventAt': 'known-event'}},
+            'lastWakeAt': 0, 'wakeCount': 1, 'lastLocalCheckAt': 1000, 'continuityStatus': None}
+        initial['continuationBudgets'][key]['checkpoints'][0] = 'x' * (MAX_STATE_BYTES - 260 - len(serialize_state(initial)))
+        job, state, calls, receipts, public = self.exercise(initial=initial, fail=True)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(state['dispatch']['kind'], 'continue')
+        self.assertEqual(state['dispatch']['outcome'], 'pending')
+        self.assertEqual(continuation_budget(state, job)['count'], 1)
+        self.assertEqual(state['continuationBudgets'][key], initial['continuationBudgets'][key])
+        self.assertEqual(public['status'], 'paused-error')
 
     def test_combined_round_reserves_budget_before_send(self):
         initial = {'baseline': {'echo': {'state': 'idle', 'eventAt': 'known-event'},

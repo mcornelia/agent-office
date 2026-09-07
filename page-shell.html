@@ -55,7 +55,17 @@
           office.agentOffice.applySnapshot(snapshot);
           const watch=snapshot.managerWatch;
           const watchNote=document.getElementById('local-watch-note');
-          watchNote.textContent=!watch?'':watch.status==='paused-error'?'Local manager watch needs attention—automatic rounds are paused.':watch.status==='unavailable'?'Local manager watch is waiting for reliable activity.':watch.status==='configuration-changed'||watch.status==='disabled'?'Local manager watch is disabled.':'Local manager watch · idle checks use no AI.';
+          const watchMessages={
+            'state-limit':'Saved state is full—automatic dispatch is paused. Keep the saved receipts and ask for a review.',
+            'paused-error':'Local manager watch needs attention—automatic rounds are paused.',
+            'unavailable':'Local manager watch is waiting for reliable activity.',
+            'configuration-changed':'Local manager watch configuration changed; automatic dispatch is stopped.',
+            'disabled':'Local manager watch is disabled.',
+            'manual-required':'Manual coordination—ask your coordinator for a check-in. No automatic prompts are sent.'
+          };
+          watchNote.textContent=!watch?'':watchMessages[watch.status] || (watch.continuityStatus==='recovery-needed'
+            ?'Recovery needs your review—open the lead task and ask it to reconcile the saved job. No automatic recovery runs.'
+            :'Local manager watch · idle checks use no AI.');
         } catch(_error) {
           if(current()) showDisconnected();
         } finally {

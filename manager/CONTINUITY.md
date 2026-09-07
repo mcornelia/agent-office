@@ -21,12 +21,14 @@ Keep objective, acceptance criteria, and evidence in the corresponding job row.
 Save actual progress before ending a work segment. `ready` grants one bounded
 continuation of that checkpoint; `running` is not permission to resume. If the
 task is positively idle while its checkpoint still says `running`, the gate
-shows **Recovery needed** and can request one read-only recovery check per job
-and authorization. It never infers a crash from elapsed time alone. Recovery
-reconciles current evidence and records a safe next step or a blocker; it cannot
-execute work or repeat an uncertain external action. Unresolved recovery does
-not suppress the team's routine rounds. Use `recovery_needed` when evidence
-does not establish a safe next step.
+shows **Recovery needs review**. It never starts an automatic recovery turn:
+the existing task inherits its normal permissions, so a read-only prompt cannot
+enforce isolation. Ask the lead directly to reconcile the saved job, current
+instructions, artifacts, and send receipts before deciding whether work can
+resume. Never retry an uncertain external action. Unresolved recovery does not
+suppress the coordinator's routine rounds. Use `recovery_needed` when evidence
+does not establish a safe next step. The coordinator cannot approve recovery
+or rewrite the lead's checkpoint on the user's behalf.
 Use `waiting`, `awaiting_approval`, or `awaiting_user_input` when continuation is
 not currently authorized or useful. Use `completed`, `canceled`, or `superseded`
 to prevent further resumption. Never infer a foreground job from old idle history.
@@ -47,8 +49,12 @@ before acting; a different current assignment makes the request stale.
 The v2 state format imports the surviving v1 count and last checkpoint once.
 History already overwritten by v1 cannot be reconstructed automatically. Legacy
 top-level count fields remain backup evidence, not the active accounting source.
-Do not delete old per-job entries to regain budget. If state exceeds its private
-file size limit, dispatch fails closed and requires operator review.
+Do not delete old per-job entries to regain budget. The complete serialized
+UTF-8 state, including a proposed receipt and send marker, must fit within
+128 KiB before it replaces the saved file or a prompt is sent. If it does not,
+dispatch stops with **Saved state full** and the last valid file remains intact.
+An oversized file found at startup also stops dispatch. Do not trim receipts or
+raise the cap casually; preserve evidence and ask for an operator review.
 
 Every round must preserve the foreground record. Only an explicitly reserved
 combined round may resume work afterward. A cancellation, replacement, or
@@ -71,7 +77,7 @@ must not concurrently write it. Follow [COORDINATOR.md](COORDINATOR.md) for roun
 
 Routine rounds target only the coordinator, even while the foreground task is
 busy. They cannot resume its work or consume its continuation budget. Continuation
-and recovery requests target only the foreground task, with a fresh busy-state
+requests target only the foreground task, with a fresh busy-state
 check. The coordinator's own activity is excluded from round triggers. The
 existing office communication animation follows the coordinator's real checks.
 
@@ -87,3 +93,8 @@ deliberately, keep the old heartbeat paused, and verify only one dispatcher runs
 
 An idle night still generates no AI wakes. Authorized ready work may continue
 overnight and consume tokens, within the six-continuation budget.
+
+Legacy `recoveryCount` and uncertain recovery-send receipts are retained as
+evidence; they never enable recovery wakes. New dispatch defaults to `manual`.
+The optional `desktop-experimental` transport must be selected explicitly.
+See [dispatch safety and rollback](SAFETY.md).
