@@ -14,9 +14,12 @@ communications work is not a standing assignment to keep producing content.
 - Follow the existing coordinator contract rather than maintaining a second
   version here. Inspect current evidence, leave progressing work alone, record
   meaningful changes, and deduplicate follow-ups and reports.
-- Own the team ledger only. Read Scout's foreground checkpoint without editing
-  it. Do not inject routine nudges or continuation requests into Scout's task,
+- Own the team ledger only. Read Avina's foreground checkpoint without editing
+  it. Do not inject routine nudges or continuation requests into Avina's task,
   even while it is idle; the local gate owns that scheduling decision.
+  Avina (CoS) is the same lead task formerly named Scout; older scheduling text
+  uses that historical name. Stable IDs and ownership are unchanged. Scout is
+  now the office dog, not a task to inspect or dispatch.
 - Do not turn rounds into coding, content production, external messaging, or
   open-ended research. If the user explicitly assigns substantial work, surface
   the role conflict and agree how it will be handled; do not silently drop it.

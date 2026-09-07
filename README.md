@@ -35,10 +35,10 @@ python3 server.py --codex-dir ~/.codex --port 4319
 Each task keeps its character when you reorder the pinned tasks. Rename a task to change its desk plaque. Put a role in parentheses to show it on the second line:
 
 ```text
-Scout (Mr Manager)
+Avina (CoS)
+Echo (Coordinator)
 Bolt (Product SWE)
 Pixel (AI Art Curator)
-Echo (Comms)
 Atlas (Travel Agent)
 Nova (Pick up player)
 ```
@@ -55,6 +55,12 @@ These are example names. The live office uses your current pinned task names. Bo
 | Dark | Reconnecting, status unavailable, or no assigned task |
 
 Movement illustrates activity; a walk to the whiteboard does not mean a particular tool is running. Reduced-motion preferences are respected.
+
+**Meet Scout, the office Golden Retriever.** He wanders the center corridor
+while agents work, stops for a sniff, and naps on his bed when it's quiet.
+Click or tap him for a tail wag. He's browser-only morale: no agent slot, AI
+calls, or messages. Hidden pages pause his stroll; reduced motion keeps him
+stationary. Avina (CoS), formerly named Scout, remains the team's lead.
 
 The neon **OPEN** sign lights up when at least one agent is working, including
 the manager. It goes dark when everyone is idle, finished, or waiting for input.
@@ -97,7 +103,7 @@ rounds and shows the last completed ledger check in your browser's local time.
 still says **Working**. Paused, disabled, or stale watch data is labeled explicitly.
 These labels do not change activity colors, OPEN-sign behavior, or check timing.
 
-When the configured manager checks the team, Scout carries a clipboard and walks to that teammate's desk before the animated speech bubbles appear. Follow-up messages have their own labels. Real check-ins queue one at a time, skip expired events, and return both characters to normal activity without exposing message text. Reduced-motion mode keeps the same information stationary.
+When the configured manager checks the team, that character carries a clipboard and walks to that teammate's desk before the animated speech bubbles appear. Follow-up messages have their own labels. Real check-ins queue one at a time, skip expired events, and return both characters to normal activity without exposing message text. Reduced-motion mode keeps the same information stationary.
 
 ## Local data and compatibility
 

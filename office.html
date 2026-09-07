@@ -21,7 +21,7 @@
     #agent-office .open-sign::before { content:""; position:absolute; height:12px; border-left:1px solid #62786c; border-right:1px solid #62786c; left:20%; right:20%; top:-14px; }
     #agent-office .open-sign[data-open="true"] { color:#baffd8; border-color:#67eaa3; text-shadow:0 0 4px #6df4a9,0 0 13px #42e48b; box-shadow:inset 0 0 9px #42e48b38,0 0 8px #42e48b90,0 0 24px #42e48b50; }
     #agent-office .open-sign small { display:block; margin-top:4px; color:#b7c9bf; font:10px/1.2 ui-sans-serif,system-ui,sans-serif; letter-spacing:.02em; text-shadow:none; }
-    #agent-office .office-desks { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-areas:'whiteboard key1 key2 coffee' 'key3 key4 key5 key6'; column-gap:10px; row-gap:64px; }
+    #agent-office .office-desks { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-areas:'whiteboard key1 key2 coffee' 'key3 key4 key5 key6'; column-gap:10px; row-gap:88px; }
     #agent-office .station { position:relative; min-height:222px; min-width:0; border:0; padding:0 0 6px; background:transparent; color:inherit; font:inherit; cursor:pointer; border-radius:10px; display:flex; flex-direction:column; }
     #agent-office .station[aria-pressed="true"] { background:light-dark(#ffffff42,#ffffff08); }
     #agent-office .station-label { position:relative; margin-top:145px; width:100%; padding:0 4px; text-align:center; font-size:12px; white-space:normal; display:flex; flex-direction:column; align-items:center; gap:6px; }
@@ -185,6 +185,32 @@
     #agent-office .speech-dots i:nth-child(2) { animation-delay:.14s; }
     #agent-office .speech-dots i:nth-child(3) { animation-delay:.28s; }
     #agent-office .comms-announcement { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+    #agent-office .pet-bed { position:absolute; left:8px; width:90px; height:29px; border:5px solid #718f80; border-radius:50%; background:#304b40; box-shadow:0 3px 0 #0002; pointer-events:none; }
+    #agent-office .pet-bed span { position:absolute; top:26px; left:0; right:0; text-align:center; font-size:11px; color:var(--office-muted); letter-spacing:.05em; }
+    #agent-office .office-pet { position:absolute; z-index:12; left:0; top:0; width:86px; height:54px; padding:0; border:0; border-radius:16px; background:transparent; cursor:pointer; touch-action:manipulation; transition:transform var(--pet-duration,0ms) linear; -webkit-tap-highlight-color:transparent; }
+    #agent-office .office-pet:focus-visible { outline:2px solid var(--office-green); outline-offset:3px; }
+    #agent-office .pet-facing { display:block; width:86px; height:54px; transform:scaleX(var(--pet-facing,1)); }
+    #agent-office .pet-drawing { display:block; width:86px; height:54px; overflow:visible; filter:drop-shadow(0 3px 1px #0003); }
+    #agent-office .pet-tail { transform-origin:25px 28px; }
+    #agent-office .pet-leg { transform-origin:42px 32px; }
+    #agent-office .pet-head { transform-origin:62px 26px; }
+    #agent-office .pet-closed-eye,#agent-office .pet-heart,#agent-office .pet-zzz { display:none; }
+    #agent-office .office-pet[data-pose="walking"] .pet-drawing { animation:office-bob .34s ease-in-out infinite alternate; }
+    #agent-office .office-pet[data-pose="walking"] .pet-leg { animation:pet-step .32s ease-in-out infinite alternate; }
+    #agent-office .office-pet[data-pose="walking"] .pet-leg-back { animation-delay:-.32s; }
+    #agent-office .office-pet:is([data-pose="walking"],[data-pose="happy"]) .pet-tail { animation:pet-wag .22s ease-in-out infinite alternate; }
+    #agent-office .office-pet[data-pose="sniffing"] .pet-head { transform:rotate(17deg) translateY(3px); }
+    #agent-office .office-pet[data-pose="sleeping"] .pet-drawing { transform:translateY(7px) scaleY(.77); }
+    #agent-office .office-pet[data-pose="sleeping"] .pet-leg { transform:scaleY(.45); }
+    #agent-office .office-pet[data-pose="sleeping"] .pet-eye { display:none; }
+    #agent-office .office-pet[data-pose="sleeping"] .pet-closed-eye { display:block; }
+    #agent-office .pet-heart,#agent-office .pet-zzz { position:absolute; right:3px; top:-13px; font:700 17px/1 ui-sans-serif,system-ui,sans-serif; pointer-events:none; }
+    #agent-office .pet-heart { color:light-dark(#ad334d,#ffacc0); }
+    #agent-office .pet-zzz { color:var(--office-muted); font-size:12px; letter-spacing:2px; }
+    #agent-office .office-pet[data-pose="happy"] .pet-heart,#agent-office .office-pet[data-pose="sleeping"] .pet-zzz { display:block; }
+    #agent-office .office-pet[data-paused="true"] * { animation-play-state:paused!important; }
+    @keyframes pet-step { from { transform:rotate(-9deg); } to { transform:rotate(9deg); } }
+    @keyframes pet-wag { from { transform:rotate(-15deg); } to { transform:rotate(22deg); } }
     @keyframes office-bubble-in { from { opacity:0; transform:translate(-50%,-88%) scale(.88); } to { opacity:1; transform:translate(-50%,-100%) scale(1); } }
     @keyframes office-speaking { 0%,70%,100% { transform:translateY(0); opacity:.4; } 35% { transform:translateY(-3px); opacity:1; } }
     @keyframes office-footsteps { 0% { transform:translateY(0) rotate(-9deg); } 100% { transform:translateY(-3px) rotate(9deg); } }
@@ -220,7 +246,7 @@
     <div class="office-bottom">
       <div class="keypad" role="group" aria-label="Six agent keys"></div>
       <form class="compose">
-        <label class="compose-title" for="agent-office-task">1 · Scout (Mr Manager)</label>
+        <label class="compose-title" for="agent-office-task">1 · Avina (CoS)</label>
         <input id="agent-office-task" class="task-input" type="text" maxlength="160" value="Draft a project introduction" aria-label="Example task for selected agent">
         <div class="compose-actions"><button class="send-task" type="submit">Send to work</button><span class="selection-detail" aria-live="polite">Ready for a task</span></div>
       </form>
@@ -260,13 +286,13 @@
         ['#d7816d','#f09b83','#a35b4b','#c07761'], ['#a095c6','#b7ace3','#746691','#8e81bd'],
         ['#7b9fae','#a1c5d6','#547a89','#7097a8'], ['#c18ca7','#e6a8c7','#925e7b','#b77e9e']
       ];
-      const roster = ['Scout (Mr Manager)','Bolt (Product SWE)','Pixel (AI Art Curator)','Echo (Comms)','Atlas (Travel Agent)','Nova (Pick up player)'];
+      const roster = ['Avina (CoS)','Echo (Coordinator)','Bolt (Product SWE)','Pixel (AI Art Curator)','Atlas (Travel Agent)','Nova (Pick up player)'];
       function splitPinnedName(title) {
         const full=String(title || '').trim();
         const match=full.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
         return match && match[1].trim()?{name:match[1].trim(),role:match[2].trim()}:{name:full || 'Unassigned',role:''};
       }
-      const tasks = ['Draft a project introduction','Build a simple landing page','Design a playful app icon','Review the latest changes','Research the next project','Write a quick-start guide'];
+      const tasks = ['Draft a project introduction','Check the team','Build a simple landing page','Design a playful app icon','Research the next project','Write a quick-start guide'];
       const agents = roster.map((displayTitle,i)=>({ ...splitPinnedName(displayTitle), displayTitle, index:i, keyNumber:i+1, task:tasks[i], state:'idle', stage:'Ready for a task', position:null, location:'home', moving:false, runId:0, threadId:null }));
       let selected = 0;
       let liveMode = false;
@@ -293,6 +319,85 @@
         const key = document.createElement('button'); key.type='button'; key.className='agent-key'; key.textContent=String(i+1);
         key.addEventListener('click',()=>select(i)); keyArea.append(key); a.key=key;
       });
+      const pet=createOfficePet();
+      function createOfficePet() {
+        const bed=document.createElement('div'); bed.className='pet-bed';
+        bed.setAttribute('aria-hidden','true'); bed.innerHTML='<span>SCOUT</span>'; room.append(bed);
+        const dog=document.createElement('button'); dog.type='button'; dog.className='office-pet';
+        dog.setAttribute('aria-label','Pet Scout, the office Golden Retriever');
+        dog.title='Scout · Chief Morale Officer. Click for a wag.';
+        dog.innerHTML=`<span class="pet-facing" aria-hidden="true"><svg class="pet-drawing" viewBox="0 0 86 54" xmlns="http://www.w3.org/2000/svg">
+          <path class="pet-tail" d="M28 29 Q12 28 6 14 Q2 20 10 30 Q17 38 30 35" fill="#e8b764" stroke="#bd8645" stroke-width="1.5"/>
+          <path class="pet-leg pet-leg-back" d="M29 31 L28 47 Q22 49 25 51 L34 51 L38 32 M48 31 L49 48 Q45 49 47 51 L56 51 L57 30" fill="#c9914d"/>
+          <path d="M25 22 Q39 16 57 22 L68 26 L65 39 Q61 43 51 40 L34 41 Q20 42 20 31 Q20 25 25 22" fill="#edbd70" stroke="#bd8645" stroke-width="1.3"/>
+          <path d="M25 25 Q34 20 47 24" fill="none" stroke="#ffdb98" stroke-width="3" stroke-linecap="round"/>
+          <path class="pet-leg" d="M24 33 L24 47 Q19 48 22 51 L31 51 L34 35 M54 33 L56 47 Q51 48 53 51 L63 51 L64 33" fill="#f3c77d" stroke="#bd8645" stroke-width="1"/>
+          <path d="M52 25 L55 38 L59 36 L61 39 L65 34 L67 29" fill="#ffe0a0"/>
+          <g class="pet-head"><path d="M55 27 L66 28" stroke="#4e8879" stroke-width="5"/><circle cx="63" cy="30" r="2.5" fill="#f9d26e"/>
+          <path d="M51 16 Q50 6 62 6 Q72 6 74 17 L81 19 Q84 23 79 27 L67 29 Q55 30 52 23Z" fill="#f3c77d" stroke="#bd8645" stroke-width="1.3"/>
+          <path d="M55 10 Q45 10 48 22 Q49 32 56 27 Q60 21 58 12" fill="#d79c51" stroke="#bd8645" stroke-width="1"/>
+          <path d="M69 19 Q78 17 80 22 Q77 28 68 26" fill="#ffe1a8"/>
+          <ellipse cx="80" cy="20" rx="3.5" ry="2.6" fill="#342c26"/>
+          <circle class="pet-eye" cx="68" cy="14" r="2" fill="#342c26"/><circle class="pet-eye" cx="68.5" cy="13.4" r=".65" fill="white"/>
+          <path class="pet-closed-eye" d="M65 15 Q68 18 71 15" fill="none" stroke="#342c26" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M70 24 Q75 27 78 24" fill="none" stroke="#825936" stroke-width="1" stroke-linecap="round"/></g>
+          </svg></span><span class="pet-heart" aria-hidden="true">♥</span><span class="pet-zzz" aria-hidden="true">z z</span>`;
+        room.append(dog);
+        const announcement=document.createElement('span'); announcement.className='comms-announcement';
+        announcement.setAttribute('aria-live','polite'); root.append(announcement);
+        let timer=null,mode=null,pose='resting',point={x:8,y:0};
+        function geometry() {
+          const bounds=room.getBoundingClientRect();
+          const upper=agents.find(a=>a.keyNumber===1).station.getBoundingClientRect();
+          const lower=agents.find(a=>a.keyNumber===3).station.getBoundingClientRect();
+          return {width:bounds.width,left:bounds.left,y:upper.bottom-bounds.top+Math.max(0,(lower.top-upper.bottom-54)/2)};
+        }
+        function clear() {if(timer!==null) clearTimeout(timer); timer=null;}
+        function later(fn,ms) {clear(); timer=setTimeout(()=>{timer=null;if(!root.isConnected){dog.dataset.paused='true';return;}if(document.hidden){sync();return;}fn();},ms);}
+        function draw(next,x=point.x,duration=0) {
+          pose=next; dog.dataset.pose=pose;
+          const g=geometry(); x=Math.max(8,Math.min(g.width-94,x));
+          if(x!==point.x) dog.style.setProperty('--pet-facing',x<point.x?-1:1);
+          point={x,y:g.y}; dog.style.setProperty('--pet-duration',`${duration}ms`);
+          dog.style.transform=`translate(${Math.round(x)}px,${Math.round(g.y)}px)`;
+          bed.style.top=`${Math.round(g.y+28)}px`;
+        }
+        function stroll() {
+          if(mode!=='active') return;
+          const g=geometry(),working=agents.filter(a=>a.state==='working');
+          const target=working[Math.floor(Math.random()*working.length)];
+          const desk=target?.station.getBoundingClientRect();
+          let x=desk?desk.left-g.left+desk.width/2-43:8;
+          // Mix short desk-side visits with an aisle stroll; never enter a desk.
+          if(Math.abs(x-point.x)<45) x=point.x<g.width/2?g.width-94:8;
+          const duration=Math.max(900,Math.min(4300,Math.abs(x-point.x)*15));
+          draw('walking',x,duration);
+          later(()=>{draw('sniffing');later(stroll,2200);},duration);
+        }
+        function currentMode() {
+          if(!root.isConnected || document.hidden) return 'paused';
+          const connected=!liveMode||liveConnected;
+          const working=connected&&agents.some(a=>a.state==='working');
+          const quiet=connected&&!agents.some(a=>['working','unknown'].includes(a.state));
+          return working&&!reducedMotion.matches?'active':quiet?'quiet':'rest';
+        }
+        function sync(force=false) {
+          const next=currentMode(); if(!force&&next===mode) return;
+          clear(); mode=next; dog.dataset.paused=String(mode==='paused');
+          draw(mode==='quiet'?'sleeping':'resting',8);
+          if(mode==='active') later(stroll,1200);
+        }
+        dog.addEventListener('click',()=>{
+          if(mode==='paused') return;
+          clear(); draw('happy'); announcement.textContent='Scout says: best office ever. Tail wag delivered.';
+          later(()=>{announcement.textContent='';sync(true);},2200);
+        });
+        document.addEventListener?.('visibilitychange',()=>sync());
+        window.addEventListener('pagehide',()=>{clear();mode='paused';dog.dataset.paused='true';draw('resting',8);});
+        window.addEventListener('pageshow',()=>sync(true));
+        reducedMotion.addEventListener('change',()=>sync(true));
+        return {sync,reflow:()=>sync(true)};
+      }
       const commsLayer=document.createElement('div');
       commsLayer.className='comms-layer'; commsLayer.setAttribute('aria-hidden','true'); room.append(commsLayer);
       const commsAnnouncement=document.createElement('span');
@@ -559,6 +664,7 @@
         showResult(selectedResultId);
       }
       function render() {
+        pet.sync();
         const sign=root.querySelector('.open-sign');
         if(sign) {
           const working=(!liveMode||liveConnected)&&agents.some(a=>a.state==='working');
@@ -599,8 +705,8 @@
         const coffee=coffeeSpace.getBoundingClientRect();
         const homeX=d.left-r.left+d.width/2-19;
         const homeY=d.top-r.top+72;
-        const topRow=agents[0]?.station.getBoundingClientRect();
-        const lowerRow=agents[2]?.station.getBoundingClientRect();
+        const topRow=agents.find(agent=>agent.keyNumber===1)?.station.getBoundingClientRect();
+        const lowerRow=agents.find(agent=>agent.keyNumber===3)?.station.getBoundingClientRect();
         const robotHeight=a.robot.getBoundingClientRect().height||48;
         const laneY=topRow && lowerRow
           ? topRow.bottom-r.top+Math.max(0,(lowerRow.top-topRow.bottom-robotHeight)/2)
@@ -723,6 +829,7 @@
       });
       function reflow() {
         agents.forEach(a=>{if(!a.moving && (!a.roundHold || a.location?.desk)) position(a,spot(a,a.location));});
+        pet.reflow();
       }
       async function work(a) {
         const runId=a.runId;
@@ -787,10 +894,26 @@
             render(); return;
           }
           if(items.some(item=>agents[item.avatar]?.roundHold && agents[item.avatar].threadId!==item.id)) clearCommunications();
+          // Avatars keep their identity; physical desks always follow pinned key slots.
+          const moved=new Set(items.filter(item=>agents[item.avatar] && agents[item.avatar].keyNumber!==item.key).map(item=>item.avatar));
+          if(moved.size) clearCommunications();
           for(const item of items) {
             const a=agents[item.avatar];
             if(!a || !Number.isInteger(item.key) || item.key<1 || item.key>6) continue;
-            const previous=a.state; const changed=a.threadId!==item.id;
+            a.keyNumber=item.key; a.station.style.gridArea=`key${item.key}`;
+          }
+          if(moved.size) {
+            // Keep keyboard focus / reading order aligned with the physical layout.
+            deskArea.append(whiteboardSpace);
+            for(const a of [...agents].sort((a,b)=>a.keyNumber-b.keyNumber)) {
+              deskArea.append(a.station);
+              if(a.keyNumber===2) deskArea.append(coffeeSpace);
+            }
+          }
+          for(const item of items) {
+            const a=agents[item.avatar];
+            if(!a || !Number.isInteger(item.key) || item.key<1 || item.key>6) continue;
+            const previous=a.state; const changed=a.threadId!==item.id || moved.has(item.avatar);
             if(changed || (previous!==item.state && !a.roundHold)) a.runId++;
             a.threadId=item.id; a.keyNumber=item.key; a.task=item.title; a.state=item.state;
             a.displayTitle=item.id?String(item.title):'Unassigned';
@@ -798,6 +921,7 @@
             a.key.textContent=String(item.key); keyArea.append(a.key);
             a.robot.querySelector('.traveler-number').textContent=String(item.key);
             a.robot.hidden=!item.id;
+            if(moved.has(item.avatar)) {a.moving=false;a.location='home';position(a,spot(a,'home'));}
             if(!a.roundHold) {
               if(a.state==='working' && (changed || previous!=='working')) work(a);
               else if(a.state!=='working') {a.moving=false;a.location='home';a.robot.dataset.walking='false';position(a,spot(a,'home'),250);}

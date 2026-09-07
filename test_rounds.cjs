@@ -12,7 +12,7 @@ const deferred = () => {let resolve; const promise=new Promise(r=>resolve=r); re
 const event = (id, to='worker', at=1000, kind='check') => ({id,from:'manager',to,at,kind});
 test('office desks mirror the Creator Micro agent-key layout',()=>{
   assert.match(html,/grid-template-areas:'whiteboard key1 key2 coffee' 'key3 key4 key5 key6'/);
-  assert.match(html,/row-gap:64px/);
+  assert.match(html,/row-gap:88px/);
   assert.match(html,/station\.style\.gridArea=`key\$\{i\+1\}`/);
   assert.match(html,/Office whiteboard/);
   assert.match(html,/No coffee, no workee/);
@@ -99,12 +99,13 @@ function office({reduced=false,board=false}={}) {
     append(...els){for(const el of els){if(el.parent)el.parent.children=el.parent.children.filter(x=>x!==el);el.parent=this;this.children.push(el);}}
     replaceChildren(...els){this.children=[];this.append(...els);}
     setAttribute(k,v){this.attributes[k]=v;}
-    addEventListener(){}
+    addEventListener(type,fn){(this.listeners??={})[type]??=[];this.listeners[type].push(fn);}
+    fire(type){for(const fn of this.listeners?.[type]||[])fn({target:this});}
     querySelector(selector){const match=e=>selector.startsWith('.')?e.className.split(' ').includes(selector.slice(1)):e.tag===selector;for(const child of this.children){if(match(child))return child;const nested=child.querySelector(selector);if(nested)return nested;}return null;}
     querySelectorAll(selector){const match=e=>selector.startsWith('.')?e.className.split(' ').includes(selector.slice(1)):e.tag===selector;return this.children.flatMap(child=>[...(match(child)?[child]:[]),...child.querySelectorAll(selector)]);}
     set innerHTML(value){this.children=[];for(const match of value.matchAll(/<(\w+)[^>]*class="([^"]+)"/g))this.append(new Element(match[1],match[2]));}
     getBoundingClientRect(){let left=0,top=0,width=840,height=560;
-      if(this.className==='station'){const i=stations().indexOf(this),slot=[[1,0],[2,0],[0,1],[1,1],[2,1],[3,1]][i];left=20+slot[0]*200;top=84+slot[1]*286;width=190;height=222;}
+      if(this.className==='station'){const i=Number(this.style.gridArea?.slice(3)||stations().indexOf(this)+1)-1,slot=[[1,0],[2,0],[0,1],[1,1],[2,1],[3,1]][i];left=20+slot[0]*200;top=84+slot[1]*310;width=190;height=222;}
       else if(this.className.split(' ').includes('office-whiteboard')){left=20;top=84;width=190;height=222;}
       else if(this.className.split(' ').includes('coffee-space')){left=620;top=84;width=190;height=222;}
       else if(this.className.split(' ').includes('robot')){const m=(this.style.transform||'').match(/translate\(([-\d]+)px,([-\d]+)px\)/);if(m){left=+m[1];top=+m[2];}width=38;height=48;}
@@ -120,13 +121,16 @@ function office({reduced=false,board=false}={}) {
   }
   const stations=()=>elements.filter(e=>e.className==='station');
   const robots=()=>stations().map((_,i)=>elements.find(e=>e.className===`robot robot-${i+1}`));
-  const motion={matches:reduced,addEventListener:(_,fn)=>motion.change=fn};
-  const context={document:{getElementById:()=>root,createElement:tag=>new Element(tag)},window:{matchMedia:()=>motion,addEventListener(){}},Date:{now:()=>now,parse:Date.parse},setTimeout:schedule,clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>schedule(fn,16),cancelAnimationFrame:id=>timers.delete(id),ResizeObserver:class{observe(){}}};
+  const motionListeners=[];
+  const motion={matches:reduced,addEventListener:(_,fn)=>motionListeners.push(fn),change:()=>motionListeners.forEach(fn=>fn())};
+  const visibilityListeners=[],pageListeners={};
+  const doc={hidden:false,getElementById:()=>root,createElement:tag=>new Element(tag),addEventListener:(event,fn)=>{if(event==='visibilitychange')visibilityListeners.push(fn);}};
+  const context={document:doc,window:{matchMedia:()=>motion,addEventListener:(event,fn)=>{(pageListeners[event]??=[]).push(fn);}},Date:{now:()=>now,parse:Date.parse},setTimeout:schedule,clearTimeout:id=>timers.delete(id),requestAnimationFrame:fn=>schedule(fn,16),cancelAnimationFrame:id=>timers.delete(id),ResizeObserver:class{observe(){}}};
   vm.runInNewContext(html.match(/<script>([\s\S]*?)<\/script>/)[1],context);
   const snapshot=(communications=[],states=['working','working','idle','idle','idle','idle'])=>root.agentOffice.applySnapshot({connected:true,slots:states.map((state,i)=>({avatar:i,key:i+1,id:i===0?'manager':i===1?'worker':`other-${i}`,title:`Agent ${i}`,state})),communications});
   const advance=async ms=>{const end=now+ms;await flush();for(let steps=0;steps<10000;steps++){const next=[...timers].filter(([,t])=>t.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!next)break;now=next[1].at;timers.delete(next[0]);next[1].fn();await flush();}now=end;await flush();};
   const bubbles=()=>root.querySelector('.comms-layer').children;
-  return {root,robots,stations,snapshot,advance,bubbles,motion};
+  return {root,robots,stations,snapshot,advance,bubbles,motion,hide(value){doc.hidden=value;visibilityListeners.forEach(fn=>fn());},page(event){pageListeners[event]?.forEach(fn=>fn());}};
 }
 test('whole office keeps a busy manager on the route across status polls and resumes both jobs',async()=>{
   const h=office();h.snapshot([event('round')]);await h.advance(500);
@@ -165,6 +169,51 @@ test('manager needing input retains amber state and stationary speech fallback',
 function boardFixture() {
   return {source:{available:true,stale:false},agents:[{id:'safe-manager',label:'Scout',key:1,assignment:null}],needsYou:[],results:[]};
 }
+test('Scout stays in the aisle, naps when quiet, and never changes real activity',async()=>{
+  const h=office(),dog=h.root.querySelector('.office-pet');
+  h.snapshot([],['idle','idle','idle','idle','idle','idle']);
+  assert.equal(dog.dataset.pose,'sleeping');
+  h.snapshot();await h.advance(1300);
+  assert.equal(dog.dataset.pose,'walking');
+  const coordinates=dog.style.transform.match(/translate\((\d+)px,(\d+)px\)/);
+  assert.ok(+coordinates[2]>=306 && +coordinates[2]+54<=394,'dog remains between desk rows');
+  assert.equal(h.stations().length,6,'pet does not take an agent slot');
+  dog.fire('click');assert.equal(dog.dataset.pose,'happy');
+  assert.equal(h.robots()[0].dataset.state,'working');
+  await h.advance(2400);assert.equal(dog.dataset.pose,'resting');
+  h.root.agentOffice.applySnapshot({connected:false,slots:[]});
+  assert.equal(dog.dataset.pose,'resting','lost connection is not confirmed quiet');
+  assert.equal(h.root.querySelector('.open-sign').querySelector('small').textContent,'Reconnecting…');
+});
+test('Scout pauses while hidden, resumes once, and respects changed reduced motion',async()=>{
+  const h=office(),dog=h.root.querySelector('.office-pet');h.snapshot();
+  await h.advance(1300);assert.equal(dog.dataset.pose,'walking');
+  h.hide(true);assert.equal(dog.dataset.paused,'true');
+  const paused=dog.style.transform;await h.advance(20000);assert.equal(dog.style.transform,paused);
+  h.hide(false);await h.advance(1300);assert.equal(dog.dataset.pose,'walking');
+  h.motion.matches=true;h.motion.change();
+  const stationary=dog.style.transform;await h.advance(10000);
+  assert.equal(dog.style.transform,stationary);assert.equal(dog.style['--pet-duration'],'0ms');
+  dog.fire('click');assert.equal(dog.dataset.pose,'happy');
+  assert.equal(dog.attributes['aria-label'],'Pet Scout, the office Golden Retriever');
+  h.page('pagehide');assert.equal(dog.dataset.paused,'true');
+  h.page('pageshow');assert.equal(dog.dataset.paused,'false');
+});
+test('pinned reorder moves desks but preserves avatar identity and coordinator role',()=>{
+  const h=office({reduced:true});h.snapshot([],['idle','idle','idle','idle','idle','idle']);
+  const avatars=[0,3,1,2,4,5];
+  h.root.agentOffice.applySnapshot({connected:true,slots:avatars.map((avatar,index)=>({avatar,key:index+1,id:avatar===0?'manager':avatar===1?'worker':`other-${avatar}`,title:['Avina (CoS)','Echo (Coordinator)','Bolt (Product SWE)','Pixel (AI Art Curator)','Atlas (Travel Agent)','Nova (Pick up player)'][index],state:'idle'}))});
+  assert.equal(h.stations()[3].style.gridArea,'key2');
+  assert.equal(h.stations()[1].style.gridArea,'key3');
+  assert.equal(h.stations()[2].style.gridArea,'key4');
+  assert.equal(h.stations()[0].querySelector('.plaque-name').textContent,'1 · Avina');
+  assert.equal(h.stations()[0].querySelector('.plaque-role').textContent,'CoS');
+  assert.equal(h.stations()[3].querySelector('.plaque-name').textContent,'2 · Echo');
+  assert.equal(h.stations()[3].querySelector('.plaque-role').textContent,'Coordinator');
+  assert.deepEqual(h.root.querySelector('.office-desks').querySelectorAll('.station').map(s=>s.style.gridArea),['key1','key2','key3','key4','key5','key6']);
+  assert.match(h.robots()[3].style.transform,/translate\(496px,156px\)/);
+  assert.match(h.robots()[1].style.transform,/translate\(96px,466px\)/);
+});
 test('neon OPEN sign follows live work, not unread results or waiting approvals',()=>{
   const h=office({reduced:true}),sign=h.root.querySelector('.open-sign');
   h.root.agentOffice.applySnapshot({connected:false,slots:[]});

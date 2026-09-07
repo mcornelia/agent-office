@@ -1,13 +1,13 @@
 # Optional office manager
 
-Choose one of your existing pinned Codex tasks as the manager. The example office calls that task **Scout (Mr Manager)**; you can use any name.
+Choose one of your existing pinned Codex tasks as the manager. The example office calls that task **Echo (Coordinator)**; you can use any name.
 
 ## Prepare local configuration
 
 Pin the manager and its teammates, then run this from the repository root:
 
 ```sh
-python3 manager/configure.py --manager-key 1
+python3 manager/configure.py --manager-key 2
 ```
 
 This reads the current local pins and creates two private, ignored files:
@@ -68,7 +68,7 @@ and private state. It adds bounded resumption of explicit checkpoints, not an
 idle AI timer. Do not restore old job ledgers during rollback.
 
 You can also use a separate existing task for lightweight rounds (for example,
-Echo) while the project lead (Scout) keeps focused work. The optional
+Echo) while the project lead (Avina, CoS) keeps focused work. The optional
 `foregroundThreadId` setting routes recovery and continuations to that lead;
 rounds stay with the coordinator. Each has a separate private state file to
 avoid concurrent ledger edits. See [the split-mode contract](CONTINUITY.md#separate-coordinator-optional)
@@ -85,7 +85,7 @@ network service is needed to decide that the team is idle.
 - Completed work is checked once. Unchanged idle or approval-wait states do not
   create further rounds. Brief jobs that finish between polls are still detected
   through their completion timestamps.
-- Scout's own activity never triggers another Scout run. A busy or waiting
+- The coordinator's own activity never triggers another coordinator run. A busy or waiting
   manager is not interrupted; pending worker changes wait until it is idle.
 - Startup takes a baseline of old idle history. Missing or uncertain live status
   does not count as active work.

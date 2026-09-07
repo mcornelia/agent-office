@@ -5,16 +5,19 @@ created agents. Names are examples; no account data or task IDs belong here.
 
 | Member | Primary responsibility | Guide |
 | --- | --- | --- |
-| Scout | Delivery, integration, and final QA | [AGENTS.md](scout/AGENTS.md) |
+| Avina (CoS) | Chief of Staff: delivery, integration, and final QA | [AGENTS.md](avina/AGENTS.md) |
+| Echo | Lightweight coordination | [AGENTS.md](echo/AGENTS.md) |
 | Bolt | Product engineering | [AGENTS.md](bolt/AGENTS.md) |
 | Pixel | Visual design and artwork | [AGENTS.md](pixel/AGENTS.md) |
-| Echo | Lightweight coordination | [AGENTS.md](echo/AGENTS.md) |
 | Atlas | Travel and local experiences | [AGENTS.md](atlas/AGENTS.md) |
 | Nova | Cross-disciplinary problem solving | [AGENTS.md](nova/AGENTS.md) |
 
 Each guide reads [shared team agreements](WORKING-AGREEMENTS.md). Agent Office
 engineering policy stays in [the project handbook](../AGENTS.md); other projects
 keep their own instructions. Specialties do not invalidate existing assignments.
+
+Avina was previously named Scout; the old guide path remains a compatibility
+pointer. Scout is now the office Golden Retriever, not a seventh agent.
 
 ## Onboard an existing task
 
