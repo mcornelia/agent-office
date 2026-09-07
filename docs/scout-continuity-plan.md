@@ -1,14 +1,36 @@
 # Scout: finish the job, even after rounds
 
-Status: approved, deployed locally, and the single live resume verification passed.
+Status: the original continuity change was published. The approved review fixes
+and Echo coordinator split are now deployed locally. GitHub publication was
+approved after the local validation.
 
-Validation: 125 Python tests and 45 JavaScript checks pass. The installed runtime
+Validation: 159 Python tests and 46 JavaScript checks pass. The installed runtime
 matches the tested source, its app signature verifies, and LAN HTTPS health is
-good. The old heartbeat remains paused. One bounded wake resumed the saved task
-successfully, with no dispatch error; the assignment is now marked complete.
-GitHub publication was approved after the live verification.
+good. The old heartbeat remains paused. Echo completed the first automatically
+routed round while Scout remained active, updating the team ledger without
+nudging Scout. No dispatch error occurred, and migration preserved the existing
+continuation count. Crash recovery was tested in simulation, not by crashing the
+live office. A verified private backout snapshot was saved before deployment.
 
 ## The problem
+
+### Review follow-up
+
+The initial live test established one successful resume, not crash recovery or
+complete budget accounting. Subsequent review found two gaps: an orphaned
+`running` checkpoint could suppress checks indefinitely, and the single-job
+counter missed round-based resumes and lost counts when switching jobs.
+
+The correction introduces a bounded read-only recovery path and persistent
+per-job/authorization budgets, with regression tests for both findings. Every
+dispatch permitting execution reserves budget before sending. Plain rounds are
+coordination-only. Existing v1 receipts are migrated without clearing counts;
+already-lost v1 history cannot be reconstructed automatically.
+
+The approved design also repurposes Echo as the coordinator. Echo owns the team
+ledger and routine rounds; Scout owns a separate foreground checkpoint file.
+Their task settings are preserved. See the [current continuity contract](../manager/CONTINUITY.md)
+for the authoritative behavior; the sections below document the original design.
 
 The current local checker avoids sending rounds while Scout is running a turn. But a turn ending does not mean your assignment is finished. A scheduled round can become the next instruction, with no explicit return to the original job.
 

@@ -171,6 +171,12 @@ class PolicyTests(unittest.TestCase):
         watch.publish({'baseline': {'private-id': 'secret'}, 'error': '/private/path', 'wakeCount': 2}, 'idle')
         self.assertEqual(set(watch.status()), {'enabled', 'status', 'wakeCount', 'lastLocalCheckAt', 'continuityStatus'})
         self.assertNotIn('private', json.dumps(watch.status()))
+        watch.publish({'continuationBudgets': {'private-job': {'count': 6}},
+                       'continuityStatus': '/private/invalid', 'wakeCount': 3}, 'idle')
+        self.assertIsNone(watch.status()['continuityStatus'])
+        self.assertNotIn('private', json.dumps(watch.status()))
+        watch.publish({'continuityStatus': 'recovery-needed'}, 'idle')
+        self.assertEqual(watch.status()['continuityStatus'], 'recovery-needed')
 
 
 class StorageTests(unittest.TestCase):

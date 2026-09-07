@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m unittest -v test_server.py test_desktop_status.py test_communications.py test_job_board.py test_manager_gate.py test_continuity.py desktop/test_agent_office_ctl.py
+      - run: python -m unittest -v test_server.py test_desktop_status.py test_communications.py test_job_board.py test_manager_gate.py test_continuity.py test_watch_integration.py desktop/test_agent_office_ctl.py
       - run: python -m unittest discover -s manager -p 'test_*.py' -v
       - run: python -m unittest discover -s prototypes/keyboard-selection -p 'test_*.py' -v
       - name: Check generated page

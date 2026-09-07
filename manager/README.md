@@ -67,6 +67,13 @@ Enable it deliberately with `continuityEnabled: true` after backing up runtime
 and private state. It adds bounded resumption of explicit checkpoints, not an
 idle AI timer. Do not restore old job ledgers during rollback.
 
+You can also use a separate existing task for lightweight rounds (for example,
+Echo) while the project lead (Scout) keeps focused work. The optional
+`foregroundThreadId` setting routes recovery and continuations to that lead;
+rounds stay with the coordinator. Each has a separate private state file to
+avoid concurrent ledger edits. See [the split-mode contract](CONTINUITY.md#separate-coordinator-optional)
+and [the coordinator brief](COORDINATOR.md). No extra agent or AI timer is needed.
+
 The time-based heartbeat above is the simpler option, but it starts an AI turn
 even when there is nothing to do. The opt-in local gate replaces that timer with
 a Python status check every 15 seconds. No model, prompt, conversation text, or

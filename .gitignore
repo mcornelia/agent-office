@@ -3,6 +3,7 @@
 /identities.tmp
 /manager/team.json
 /manager/state.json
+/manager/foreground.json
 /manager/SCOUT-MANAGER.md
 /manager/MANAGER-BRIEF.md
 /manager/*.tmp

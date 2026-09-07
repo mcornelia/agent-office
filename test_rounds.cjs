@@ -282,6 +282,12 @@ test('paused, disabled, stale and unsupported watch states never claim monitorin
   const board=boardFixture();board.source.available=false;
   assert.equal(watchSnapshot(h,{board}).note,'Last check unavailable');
 });
+test('recovery and continuation holds have explicit private-detail-free labels',()=>{
+  const h=office({reduced:true,board:true});
+  assert.equal(watchSnapshot(h,{watch:{continuityStatus:'recovery-needed'}}).label,'Recovery needed');
+  assert.equal(watchSnapshot(h,{watch:{continuityStatus:'continuation-limit'}}).label,'Resume needs attention');
+  assert.equal(watchSnapshot(h,{watch:{continuityStatus:null}}).label,'Watching team');
+});
 test('disconnect, absent watch and private presentation clear manager details',()=>{
   const h=office({reduced:true,board:true});watchSnapshot(h);
   h.root.agentOffice.applySnapshot({connected:false,slots:[]});
